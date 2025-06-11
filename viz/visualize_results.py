@@ -3,6 +3,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import seaborn as sns
+import mne
+import scipy
 import numpy as np
 import os
 import re
@@ -466,7 +468,92 @@ def generate_summary_report(results_data, analysis_id, output_dir):
     
     print(f"Summary report saved to {report_path}")
 
+def plot_topo_maps(csv_file, feature, output_dir):
+    """Visualizes the specified feature from a CSV file as topographic maps using MNE-Python.
+    This function reads a CSV file containing MEG features, filters the data based on the specified feature,
+    and generates topographic maps for the LSD and PLA conditions using paired t-tests and permutation t-tests.
+    
 
+    Args:
+        feature (str): Feature to visualize, e.g., 'higuchiFd', 'detrendedFluctuationAnalysis' (DO NOT ADD MeanEpochs).
+        csv_file (str): Name of the CSV file containing the data.
+        e.g., 'LSD-PLA-Features.csv'
+        output_dir (str): Directory where the output images will be saved.
+        
+    Returns:
+        None: Displays the topographic maps of the specified feature.
+    Raises:
+        ValueError: If the feature is not found in the CSV file.
+    """
+    
+    
+    data = pd.read_csv(f'{output_dir}/{csv_file}')
+    feature_prefix = f'feature-{feature}MeanEpochs'
+    columns = data.columns
+    
+    ######################################### THE BLOCK CHECKS IF THE FEATURE IS PRESENT IN THE DATA
+    features_all = list()
+    for col in data.columns:
+        if col == 'subject' or col == 'target':
+            continue
+        features_all.append(col.split('.')[0].split("-")[1])
+    features_all = np.unique(features_all)
+    
+    if feature_prefix.split('-')[1] not in features_all:
+        print(f"Feature prefix '{feature_prefix}' not found in columns.")
+        print("Available features (ADD WITHOUT MeanEpochs) :", features_all)
+        return
+    #########################################
+    
+    
+    #########################################
+    filtered_columns = [col for col in columns if col.startswith(feature_prefix)]
+    filtered_df = data[['target'] + filtered_columns]
+    #########################################
+
+    LSD = filtered_df[filtered_df['target']==1]
+    PLA = filtered_df[filtered_df['target']==0]
+    LSD = LSD.drop(columns=['target'])
+    PLA = PLA.drop(columns=['target'])
+
+    array1 = LSD.values
+    array2 = PLA.values
+
+    info = mne.io.read_raw_fif(f'{output_dir}/info_for_plot_topomap_function.fif', preload=True).info
+
+    statistics_method = ['paired_t_test', 'permutation_t_test']
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(15, 3))
+
+    for ax, (i, stats) in zip(axes, enumerate(statistics_method)):
+
+        if stats == 'paired_t_test':
+            t_stats, p_vals = scipy.stats.ttest_rel(array1, array2, axis=0)
+            data_to_plot = t_stats * (p_vals < 0.05)
+            vmax = np.max(np.abs(data_to_plot))
+            vmin = -vmax
+                
+        if stats == 'permutation_t_test':
+            t_stats, p_vals, _ =  mne.stats.permutation_t_test(
+                array1 - array2, n_permutations=10000, tail=0, n_jobs=1
+            )
+            data_to_plot = t_stats * (p_vals < 0.05) 
+            vmax = np.max(np.abs(data_to_plot))
+            vmin = -vmax
+    
+        im, _ = mne.viz.plot_topomap(
+        data_to_plot,  info, show=False, vlim=(vmin, vmax), cmap="seismic", axes=ax, contours=0, sphere=(0, 0, -0.075, 0.1))
+        ax.set_title(f'{csv_file} {feature} {stats}', fontsize=16)
+    
+    fig.tight_layout(rect=[0, 0.12, 1, 1])
+
+    cbar_ax = fig.add_axes([0.3, 0.04, 0.4, 0.025])  # [left, bottom, width, height]
+    fig.colorbar(im, cax=cbar_ax, orientation='horizontal')
+    dir_path = f'{output_dir}/Visualization/{csv_file.split(".")[0]}'
+
+    os.makedirs(dir_path, exist_ok=True)
+
+    fig.savefig(f'{dir_path}/{feature}.png', bbox_inches="tight", dpi=300)
+    
 def main():
     parser = argparse.ArgumentParser(description="Comprehensive ML experiment results visualization.")
     parser.add_argument(
