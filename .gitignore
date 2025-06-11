@@ -4,5 +4,6 @@ logs/
 results/
 .vscode/
 .DS_Store
+__pycache__
 
 src/
