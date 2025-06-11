@@ -80,19 +80,27 @@ def main():
         analysis_cfg.update(analysis)
 
         # 1) Select features & target
-        X, y = select_features(
+        X, y, groups = select_features(
             df,
             target_columns=analysis_cfg["target_columns"],
             covariates=analysis_cfg.get("covariates"),
             spatial_units=analysis_cfg.get("spatial_units"),
             feature_names=analysis_cfg.get("feature_names", "all"),
             row_filter=analysis_cfg.get("row_filter"),
+            sep=analysis_cfg.get("sep", "_"),
+            reverse=analysis_cfg.get("reverse", False),
+            groups_column=analysis_cfg.get("groups_column", None),
+            verbose=True,
         )
+
+        column_names = X.columns.tolist() if hasattr(X, "columns") else None
 
         logger.info(
             f"Analysis {analysis['id']} selected {X.shape[1]} features, "
             f"{y.shape[0]} samples, target '{y.name}'"
         )
+
+
         # show first few features
         feat_list = X.columns.tolist()
         logger.info(

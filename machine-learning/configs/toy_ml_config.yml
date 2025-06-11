@@ -1,18 +1,18 @@
 # -----------------------------------------------------------------------------
-# Toy config for coco_pipe MLPipeline
+# neuro_cocodelics toy config for coco_pipe MLPipeline
 # -----------------------------------------------------------------------------
 
 # A unique identifier for this entire experiment
-global_experiment_id: "toy_ml_config"
+global_experiment_id: "toy_ml_config_neuro_cocodelics"
 
-# Path to your input CSV/Parquet/etc.  
-data_path: "./datasets/toy_dataset.csv"
+# Path to your input CSV/Parquet/etc: change this to the data you want to analyze 
+data_path: "./local_data/ketamine.csv" 
 
 # Where to write all the per‐analysis and final results
 results_dir: "./results"
 
 # Base filename (without extension) for per‐analysis outputs
-results_file: "toy_ml_config"
+results_file: "toy_ml_config_neuro_cocodelics"
 
 # -----------------------------------------------------------------------------
 # Defaults: values here are applied to every analysis unless overridden
@@ -24,202 +24,89 @@ defaults:
   # Number of parallel jobs (−1 = all cores)
   n_jobs: -1
 
-  # Cross‐validation settings; any can be overridden per‐analysis
+  # Cross‐validation settings; any can be overridden per‐analysis (both inner and outer CV)
+  # We have outer validation for model evaluation and inner validation for hyperparameter tuning
+  # or feature selection! If you run baseline analysis, there is only outer CV.
+  # The scripts will understand whether you want to run inner CV or not based on the analysis_type 
+  # specified in the analysis config below.
   cv_kwargs:
-    cv_strategy: "stratified"    # Options: "kfold", "stratified", "group", etc.
+    cv_strategy: "stratified"    # In this project we will use group-stratified CV
     n_splits: 5                  # Number of folds
     shuffle: true                # Whether to shuffle before splitting
     random_state: 42             # Seed for the splitter
 
-  # Always‐include covariates (by column name) for all analyses
-  covariates: ["age"]
+  # Covariates refers to clinical or demographic variables that you want to control for
+  # or include in your model. If you have no covariates, leave this empty.
+  covariates: []
 
-  # If you want to do group‐ or spatial‐CV, list your grouping columns here
-  spatial_units: ["regionX", "regionY"]
+  groups_column: "subject"  # Column name for grouping (e.g., subject ID) to use in cross-validation
 
-  # By default include all features; you can also set a list of column names
-  feature_names: "all"
+  # other than the covariates the code can use <unit><sep><feature>
+  # which means that the features are computed for each spatial unit
+  # sep is used to separate the feature name from the spatial unit
+  # e.g., "feature-petrosianFdMeanEpochs.spaces-Channel1"
+  # If you have your columns in <feature><sep><unit>, set reverse to True
+
+  # Spatial units refer to sensors, regions, or other spatial units in your data.
+  spatial_units: [MLF24, MRC63, MRC22, MRT41, MLO42, MLO44, MRP55, MRC24, MRT45, MLO23, MRF56, MLC12, MRC42, MRT42, MLT16, MLF56, MLT44, MRC11, MRP21, MLT55, MRT37, MLC17, MLT26, MLT35, MLT52, MZO01, MLF31, MLT56, MLF65, MLC51, MLF42, MRC15, MRT22, MLO43, MLO51, MLP51, MRC13, MLF61, MRT31, MLC53, MLT43, MLC25, MLO12, MLP22, MRO24, MLP21, MRP33, MRC21, MRF34, MRP57, MLF32, MLF14, MRC23, MRO34, MRP43, MLF33, MRP51, MRT43, MLO52, MRT44, MZC03, MLF54, MLO41, MZF02, MLF52, MLP45, MRC52, MLT37, MRF65, MRF35, MRP32, MLC22, MLF11, MZO02, MLT47, MLF41, MRO43, MLP42, MRF61, MRT16, MLF22, MLT54, MRF13, MLP32, MZP01, MRF21, MLT51, MRT32, MLP34, MLF35, MRT21, MRF53, MRF66, MRO44, MLT42, MLC21, MLC14, MLO13, MRF31, MRF44, MLT13, MLF63, MZF01, MLT31, MLO24, MLO53, MRO14, MZF03, MRO31, MRC14, MLP43, MLO11, MLT23, MLT14, MLP55, MLO32, MLP52, MLC61, MRO52, MLO14, MRF51, MRP56, MRF33, MLP35, MLT57, MLF62, MRF24, MRT27, MRC12, MLF45, MRP41, MRC41, MRT54, MLO34, MLP12, MLF64, MLO33, MRC31, MLP31, MLO21, MRF62, MLF55, MRT35, MRC32, MLC11, MLC23, MRP42, MLC52, MRT13, MLF34, MRC62, MLC63, MRF52, MLT22, MRO22, MLC62, MLF23, MRO23, MRO32, MLC42, MRO33, MRO51, MRT26, MZO03, MRF63, MLT11, MLC32, MLF13, MRO13, MRC51, MRP45, MLT15, MLP41, MLC55, MRF55, MRT25, MRC55, MLT45, MLT21, MLF12, MRT55, MLP57, MRF25, MLC54, MRC17, MRF11, MRP53, MLT24, MRC53, MRT57, MRP34, MLT12, MLP11, MLP33, MRP44, MRC16, MLF21, MRO21, MLP53, MRC54, MRF45, MRF54, MRO11, MRT15, MLF25, MLP23, MLF46, MLC16, MLC31, MRP22, MLF51, MRP52, MRP31, MLT41, MRT24, MRF42, MRF67, MRP35, MLC13, MLC24, MRC25, MLF53, MRO12, MRP12, MRT47, MRF64, MLO31, MRP23, MRF32, MLF67, MRF14, MRP11, MLT33, MLC15, MRO53, MRT12, MLO22, MRT53, MZC04, MRT56, MRT34, MRF23, MZC02, MLF44, MLC41, MRF41, MZC01, MRC61, MLP44, MLT34, MRT52, MLF43, MRF46, MRT33, MRT11, MLP56, MRF12, MLT46, MRO42, MRP54, MRT46, MRT51, MLT53, MRF43, MLT25, MRT14, MLF66, MLP54, MLT27, MRF22, MRT23]
+
+  # list of features computed (for each spatial unit)
+  feature_names: 
+    - 'feature-lzivComplexityMeanEpochs'
+    # - 'feature-higuchiFdMeanEpochs'
+    # - 'feature-svdEntropyMeanEpochs'
+    # - 'feature-higuchiFdVarEpochs'
+    # - 'feature-hjorthMobilityMeanEpochs'
+    # - 'feature-hjorthComplexityMeanEpochs'
+    # - 'feature-spectralEntropyMeanEpochs'
+    # - 'feature-numZerocrossMeanEpochs'
+    # - 'feature-katzFdMeanEpochs'
+    # - 'feature-katzFdSDEpochs'
+    # - 'feature-detrendedFluctuationMeanEpochs'
+    # - 'feature-petrosianFdMeanEpochs'
+
+  # the separator  
+  sep: ".spaces-" # Separator for multi‐output columns (e.g., "feature-petrosianFdMeanEpochs.spaces-channel1")
+
+  # If you have your columns in <unit><sep><feature>, set reverse to True
+  reverse: true # Whether to reverse the order of <unit> and <feature> in column names
+  verbose: true # Whether to print detailed logs during the analysis
 
 
 # -----------------------------------------------------------------------------
 # Analyses to run: each entry here produces one folder/file in results_dir
 # -----------------------------------------------------------------------------
+# for each analysis you want to run on this dataset using the config above, 
+# add a new entry here. Each analysis can have its own parameters.
 analyses:
 
   # 1) Classification Baseline (multivariate mode)
-  - id: "classification_baseline"
-    task: "classification"         # "classification" or "regression"
+  - id: "classification_baseline"  # analyisis ID, must be unique
+    task: "classification"         # "classification"
     mode: "multivariate"           # "multivariate" (one pipeline on all outputs)
-                                   # or "univariate" (loop per target column)
-    analysis_type: "baseline"      # baseline, feature_selection, hp_search, hp_search_fs
-    target_columns: ["target_class"]
-    # (optional) override defaults
-    # covariates: ["gender", "income"]
-    # feature_names: "all"
-    # spatial_units: ["regionX"]
-    # cv_kwargs:
-    #   cv_strategy: "kfold"
-    #   n_splits: 4
+                                   # or "univariate" (loop per target column), usefull for 1 model per feature and 
+                                   # plotting topomaps of the results
+    analysis_type: "feature_selection"      # could be: baseline, feature_selection, hp_search, hp_search_fs
+    target_columns: ["target"]
 
     models:
-      - "Logistic Regression"     # must match a key in BINARY_MODELS or MULTICLASS_MODELS
-      - "Random Forest"
+      - "Logistic Regression"     # models to use, can be a list or "all" for all models in your config
+      - "Random Forest"           # Logistic Regression, Decision Tree, Random Forest, Gradient Boosting
+      - "SVC"                     # SVC, KNN, Extra Trees, AdaBoost, HistGradientBoosting
 
     metrics:
-      - "accuracy"                # keys in BINARY_METRICS / MULTICLASS_METRICS
-      - "roc_auc"
+      - "accuracy"                # metrics to compute, can be a list or any of these:
+      - "f1"                      # balanced_accuracy, f1, precision, recall, average_precision, mcc (for matthews_corrcoef)  
+      - "roc_auc"                 # roc_auc and average_precision.
 
+    # if you want to do feature selection, you can specify the following parameters:
+    n_features: 1                # how many features to pick
+    direction: "forward"         # "forward", "backward", or "both"
+    scoring: "accuracy"                # which metric to use to select features
 
-  # 2) Classification + Feature Selection
-  - id: "classification_feature_selection"
-    task: "classification"
-    mode: "multivariate"
-    analysis_type: "feature_selection"
-    target_columns: ["target_class"]
-
-    # If you only want to consider a subset of columns:
-    # feature_names: ["feat1","feat2","feat3"]
-
-    row_filter:
-      - column: "age"             # only keep samples with age < 40
-        operator: "<"
-        values: 40
-
-    models:
-      - "SVC"
-
-    metrics:
-      - "f1"
-
-    # Feature‐selection parameters
-    n_features: 3                 # how many features to pick
-    direction: "backward"         # "forward", "backward", or "both"
-    scoring: "f1"                 # which metric to use inside SFS
-
-
-  # 3) Classification Hyperparameter Search
-  - id: "classification_hp_search"
-    task: "classification"
-    mode: "multivariate"
-    analysis_type: "hp_search"
-    target_columns: ["target_class"]
-
-    models: "all"                 # run HP search on every model in your config
-
-    metrics:
-      - "accuracy"
-      - "average_precision"
-
-    # override cross‐val for this analysis
-    cv_kwargs:
-      cv_strategy: "kfold"
-      n_splits: 3
-
-    # Hyperparameter‐search parameters
+    #If you want to run hp search, you can specify the following parameters:
     search_type: "grid"           # "grid" or "random"
     n_iter: 20                    # only used for random search
     scoring: "accuracy"           # metric to optimize
 
-    # You can also supply your own grid if you like:
-    # param_grid:
-    #   max_depth: [3,5,10]
-    #   n_estimators: [50,100]
-
-
-  # 4) Classification + Combined FS & HP Search
-  - id: "classification_fs_hp_search"
-    task: "classification"
-    mode: "multivariate"
-    analysis_type: "hp_search_fs"
-    target_columns: ["target_class"]
-
-    models:
-      - "Random Forest"
-
-    metrics:
-      - "accuracy"
-
-    # Feature‐selection parameters
-    n_features: 4
-    direction: "forward"
-
-    # Hyperparameter‐search parameters
-    search_type: "random"
-    n_iter: 50
-    scoring: "roc_auc"
-
-
-  # 5) Regression Baseline (single‐output)
-  - id: "regression_baseline"
-    task: "regression"
-    mode: "multivariate"          # for regression, if y has multiple columns you can also do univariate
-    analysis_type: "baseline"
-    target_columns: ["target_reg"]
-
-    models:
-      - "Linear Regression"
-      - "Random Forest"
-
-    metrics:
-      - "r2"                      # keys in REGRESSION_METRICS
-      - "neg_mean_squared_error"
-
-
-  # 6) Regression + Feature Selection
-  - id: "regression_feature_selection"
-    task: "regression"
-    mode: "multivariate"
-    analysis_type: "feature_selection"
-    target_columns: ["target_reg"]
-
-    models:
-      - "Random Forest"
-
-    metrics:
-      - "r2"
-
-    # FS params
-    n_features: 5
-    direction: "forward"
-    scoring: "r2"
-
-
-  # 7) Regression Hyperparameter Search
-  - id: "regression_hp_search"
-    task: "regression"
-    mode: "multivariate"
-    analysis_type: "hp_search"
-    target_columns: ["target_reg"]
-
-    models: "all"
-    metrics:
-      - "r2"
-      - "neg_mean_squared_error"
-
-    cv_kwargs:
-      cv_strategy: "kfold"
-      n_splits: 4
-
-    search_type: "random"
-    n_iter: 30
-    scoring: "neg_mean_squared_error"
-
-
-  # 8) Regression + Combined FS & HP Search
-  - id: "regression_fs_hp_search"
-    task: "regression"
-    mode: "multivariate"
-    analysis_type: "hp_search_fs"
-    target_columns: ["target_reg"]
-
-    models:
-      - "Random Forest"
-
-    metrics:
-      - "r2"
-
-    n_features: 6
-    direction: "backward"
-    search_type: "grid"
-    n_iter: 10
-    scoring: "r2"
+    # if you want to run feature selection + hyperparameter search, you can specify both of the parameters above.
