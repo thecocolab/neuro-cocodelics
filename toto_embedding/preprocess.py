@@ -27,7 +27,7 @@ def process_file(row):
     raw.resample(TGT_SFREQ, n_jobs=-1, verbose=False)
     raw.filter(1, 100, n_jobs=-1, verbose=False)
 
-    outpath = Path(OUT_DIR) / row.dataset / row.subject / row.session / "data.fif"
+    outpath = Path(OUT_DIR) / row.dataset / row.subject / row.session / "data_meg.fif"
     outpath.parent.mkdir(parents=True, exist_ok=True)
     raw.save(outpath, overwrite=True, verbose=False)
 
@@ -39,7 +39,6 @@ def main():
         subj = path.parts[-4].replace("sub-", "")
         sess = path.parts[-3].replace("ses-", "")
         df.loc[len(df)] = [dset, subj, sess, str(path)]
-    df.to_csv(os.path.join(OUT_DIR, "datasets.csv"), index=False)
 
     Parallel(n_jobs=-1)(delayed(process_file)(df.iloc[i]) for i in trange(len(df), desc="Processing files"))
     print("Processing complete. Processed files saved to:", OUT_DIR)
