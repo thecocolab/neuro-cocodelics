@@ -124,12 +124,17 @@ if __name__ == "__main__":
     target_counts = aggregate_df.groupby('dataset')['target'].value_counts().unstack(fill_value=0)
     logging.info("Target distribution per dataset:")
     logging.info(target_counts)
-    # Check if any dataset has only one class
-    single_class_datasets = target_counts[target_counts.eq(0).any(axis=1)].index.tolist()
-    if single_class_datasets:
-        logging.warning(f"The following datasets have only one class in the target variable: {single_class_datasets}. "
-                        "These datasets will be dropped from the aggregate dataframe.")
-        aggregate_df = aggregate_df[~aggregate_df['dataset'].isin(single_class_datasets)]
+    # Check if any subject has only one class and drop that subject from the aggregate dataframe
+    single_class_subjects = aggregate_df.groupby('subject')['target'].nunique()
+    single_class_subjects = single_class_subjects[single_class_subjects == 1].index
+    if not single_class_subjects.empty:
+        logging.warning(f"Found subjects with only one class in target: {single_class_subjects.tolist()}. "
+                        f"Dropping these subjects from the aggregate dataframe.")
+        aggregate_df = aggregate_df[~aggregate_df['subject'].isin(single_class_subjects)]
+        # log again the target distribution after dropping single class subjects
+        target_counts = aggregate_df.groupby('dataset')['target'].value_counts().unstack(fill_value=0)
+        logging.info("Target distribution per dataset after dropping single class subjects:")
+        logging.info(target_counts)
 
     # For the LSD dataset, change the dataset into dataset-task using the task column
     aggregate_df.loc[aggregate_df['dataset'] == 'lsd', 'dataset'] = aggregate_df['dataset'] + '-' + aggregate_df['task']
