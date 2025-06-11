@@ -1,2 +1,7 @@
 git+https://github.com/BabaSanfour/coco-pipe.git#egg=cocopipe
 gdown
+pandas>=1.3.0
+matplotlib>=3.5.0
+seaborn>=0.11.0
+scikit-learn>=1.0.0
+pyyaml>=5.0
