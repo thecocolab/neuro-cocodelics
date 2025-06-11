@@ -1,2 +1,6 @@
 git+https://github.com/BabaSanfour/coco-pipe.git#egg=cocopipe
 gdown
+jupyter
+mne
+umap-learn
+scikit-learn
