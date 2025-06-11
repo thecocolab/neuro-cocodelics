@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple
 
 import mne
 import numpy as np
@@ -88,7 +88,7 @@ def batched_sliding_window(
     include_chans: List[str] = [],
     exclude_chans: List[str] = [],
     batch_size: int = 100,
-    n_jobs: int = -1,
+    n_jobs: int = 1,
     verbose: bool = True,
 ) -> Tuple[np.ndarray, List]:
     """
