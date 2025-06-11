@@ -119,6 +119,17 @@ if __name__ == "__main__":
     aggregate_df['target'] = aggregate_df['filepath'].apply(
         lambda x: 0 if 'ses-placebo' in x else 1
     )
+    # make sure each target has the same number of 0s and 1s, logg the distribution and 
+    # drop subjects that have missing targets (i.e only 0s or only 1s)
+    target_counts = aggregate_df.groupby('dataset')['target'].value_counts().unstack(fill_value=0)
+    logging.info("Target distribution per dataset:")
+    logging.info(target_counts)
+    # Check if any dataset has only one class
+    single_class_datasets = target_counts[target_counts.eq(0).any(axis=1)].index.tolist()
+    if single_class_datasets:
+        logging.warning(f"The following datasets have only one class in the target variable: {single_class_datasets}. "
+                        "These datasets will be dropped from the aggregate dataframe.")
+        aggregate_df = aggregate_df[~aggregate_df['dataset'].isin(single_class_datasets)]
 
     # For the LSD dataset, change the dataset into dataset-task using the task column
     aggregate_df.loc[aggregate_df['dataset'] == 'lsd', 'dataset'] = aggregate_df['dataset'] + '-' + aggregate_df['task']
