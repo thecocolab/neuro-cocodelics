@@ -1,0 +1,55 @@
+global_experiment_id: "lsd_closed_improved"
+data_path: "local_data/lsd-Closed1.csv"
+results_dir: "results/lsd_closed"
+results_file: "lsd_closed_improved"
+
+defaults:
+  random_state: 42
+  n_jobs: 6  # Conservative parallel setting for Compute Canada
+  cv_kwargs:
+    cv_strategy: "stratified"
+    n_splits: 5
+    shuffle: true
+    random_state: 42
+  covariates: []
+  groups_column: "subject"
+  
+  # Use key spatial units from different brain regions  
+  spatial_units: [MLC11, MLC12, MLC21, MLC22, MLC31, MLC32, MLF24, MLF31, MLF42, MLF51, MLF62, MLP21, MLP31, MLP42, MLP51, MLT11, MLT21, MLT31, MLT41, MLT51, MLO11, MLO21, MLO31, MLO41, MRC11, MRC21, MRC31, MRC41, MRF21, MRF31, MRF41, MRF51, MRP21, MRP31, MRP41, MRT21, MRT31, MRT41, MZC01, MZF01, MZO01, MZP01]
+  
+  # Use multiple complementary feature types
+  feature_names:
+    - "feature-lzivComplexityMeanEpochs"
+    - "feature-spectralEntropyMeanEpochs"
+    - "feature-svdEntropyMeanEpochs"
+    - "feature-hjorthComplexityMeanEpochs"
+    - "feature-hjorthMobilityMeanEpochs"
+    - "feature-higuchiFdMeanEpochs"
+    - "feature-petrosianFdMeanEpochs"
+    
+  sep: ".spaces-"
+  reverse: true
+  verbose: true
+  use_scaler: true
+
+analyses:
+  # Multi-feature classification with feature selection
+  - id: "multifeature_fixed"
+    task: "classification"
+    mode: "multivariate"
+    analysis_type: "feature_selection"
+    target_columns: ["target"]
+    models: ["Logistic Regression", "Random Forest", "SVC"]
+    metrics: ["accuracy", "roc_auc", "f1"]
+    n_features: 20
+    direction: "forward"
+    scoring: "accuracy"  # Use accuracy for feature selection scoring instead of roc_auc
+    
+  # Baseline without feature selection for comparison
+  - id: "multifeature_baseline_no_fs"
+    task: "classification"
+    mode: "multivariate" 
+    analysis_type: "baseline"
+    target_columns: ["target"]
+    models: ["Logistic Regression", "Random Forest", "SVC"]
+    metrics: ["accuracy", "roc_auc", "f1"]
