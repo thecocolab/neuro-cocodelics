@@ -15,11 +15,12 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def run_analysis(X, y, analysis_cfg):
+def run_analysis(X, y, groups, analysis_cfg):
     """Run a single analysis with the given config, passing through the new `mode`."""
     # scikit-learn pipelines expect numpy arrays
-    X_arr = X.values if hasattr(X, "values") else X
+    X_arr = X
     y_arr = y.values if hasattr(y, "values") else y
+    groups_arr = groups.values if hasattr(groups, "values") else groups
     # ADD blabla blaq
     # Build the MLPipeline config dict
     pipeline_config = {
@@ -53,7 +54,7 @@ def run_analysis(X, y, analysis_cfg):
         f"{X_arr.shape[0]}×{X_arr.shape[1]} data"
     )
 
-    pipeline = MLPipeline(X=X_arr, y=y_arr, config=pipeline_config)
+    pipeline = MLPipeline(X=X_arr, y=y_arr, groups=groups_arr, config=pipeline_config)
     results = pipeline.run()
 
     logger.info(f"Analysis {analysis_cfg['id']} completed")
@@ -112,7 +113,7 @@ def main():
         analysis_cfg["results_dir"]  = cfg.get("results_dir", analysis_cfg.get("results_dir"))
         analysis_cfg["results_file"] = cfg.get("results_file", analysis_cfg.get("results_file"))
 
-        results = run_analysis(X, y, analysis_cfg)
+        results = run_analysis(X, y, groups, analysis_cfg)
         all_results[analysis["id"]] = results
 
     # 3) Save all results
