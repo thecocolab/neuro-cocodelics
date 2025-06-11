@@ -1,1 +1,1 @@
--e git+https://github.com/BabaSanfour/coco-pipe.git#egg=cocopipe
+git+https://github.com/BabaSanfour/coco-pipe.git#egg=cocopipe
