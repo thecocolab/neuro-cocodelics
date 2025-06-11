@@ -52,7 +52,7 @@ logger.addHandler(console_handler)
 if __name__ == "__main__":
 
     # Load the aggregate CSV file
-    aggregate_file = ".local_data/aggregate@raw.csv"
+    aggregate_file = "./local_data/aggregate@raw.csv"
     if not os.path.exists(aggregate_file):
         raise FileNotFoundError(f"Aggregate file {aggregate_file} does not exist.")
     aggregate_df = pd.read_csv(aggregate_file)
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     # log the final shape of the aggregate dataframe
     logging.info(f"Final shape of the aggregate dataframe: {aggregate_df.shape}")
     # Save the cleaned aggregate dataframe
-    cleaned_aggregate_file = ".local_data/aggregate_cleaned.csv"
+    cleaned_aggregate_file = "./local_data/aggregate_cleaned.csv"
     aggregate_df.to_csv(cleaned_aggregate_file, index=False)
     logging.info(f"Saved cleaned aggregate dataframe to {cleaned_aggregate_file}")
     # Split the aggregate dataframe into multiple csv files, one for each dataset
@@ -157,7 +157,7 @@ if __name__ == "__main__":
         dataset_df = dataset_df.drop(columns=['dataset'])
         # log the shape of the dataset
         logging.info(f"Dataset {dataset} has shape: {dataset_df.shape}")
-        dataset_file = f".local_data/{dataset}.csv"
+        dataset_file = f"./local_data/{dataset}.csv"
         dataset_df.to_csv(dataset_file, index=False)
         logging.info(f"Saved dataset {dataset} to {dataset_file}")
     logging.info("Finished splitting aggregate CSV into individual dataset CSV files.")
