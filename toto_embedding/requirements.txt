@@ -1,0 +1,2 @@
+mne-bids
+git+https://github.com/dav0dea/toto.git
