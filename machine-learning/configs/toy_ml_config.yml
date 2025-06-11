@@ -71,6 +71,8 @@ defaults:
   # If you have your columns in <unit><sep><feature>, set reverse to True
   reverse: true # Whether to reverse the order of <unit> and <feature> in column names
   verbose: true # Whether to print detailed logs during the analysis
+  use_scaler: true # Whether to apply scaling to the features (e.g., StandardScaler)
+  # This is done with respect to the training set, so that the test set is scaled with the same parameters.
 
 
 # -----------------------------------------------------------------------------

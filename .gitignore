@@ -3,3 +3,4 @@ local_data/
 logs/
 results/
 .vscode/
+.DS_Store
