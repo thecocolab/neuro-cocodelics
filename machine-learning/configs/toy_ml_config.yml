@@ -30,7 +30,7 @@ defaults:
   # The scripts will understand whether you want to run inner CV or not based on the analysis_type 
   # specified in the analysis config below.
   cv_kwargs:
-    cv_strategy: "stratified"    # In this project we will use group-stratified CV
+    cv_strategy: "group_kfold"    # In this project we will use group-stratified CV
     n_splits: 5                  # Number of folds
     shuffle: true                # Whether to shuffle before splitting
     random_state: 42             # Seed for the splitter
