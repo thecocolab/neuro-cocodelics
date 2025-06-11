@@ -15,44 +15,60 @@ results_dir: "./results"
 results_file: "toy_ml_config_neuro_cocodelics"
 
 # -----------------------------------------------------------------------------
-# Defaults: values here are applied to every analysis unless overridden
+# Defaults: values here apply to every analysis unless overridden below
 # -----------------------------------------------------------------------------
 defaults:
+  # ------------------------
+  # General settings
+  # ------------------------
   # Random seed for reproducibility
   random_state: 42
 
   # Number of parallel jobs (−1 = all cores)
   n_jobs: -1
 
-  # Cross‐validation settings; any can be overridden per‐analysis (both inner and outer CV)
-  # We have outer validation for model evaluation and inner validation for hyperparameter tuning
-  # or feature selection! If you run baseline analysis, there is only outer CV.
-  # The scripts will understand whether you want to run inner CV or not based on the analysis_type 
-  # specified in the analysis config below.
-  cv_kwargs:
-    cv_strategy: "group_kfold"    # In this project we will use group-stratified CV
-    n_splits: 5                  # Number of folds
-    shuffle: true                # Whether to shuffle before splitting
-    random_state: 42             # Seed for the splitter
+  # Whether to print detailed logs during each analysis
+  verbose: true
 
-  # Covariates refers to clinical or demographic variables that you want to control for
-  # or include in your model. If you have no covariates, leave this empty.
+  # Whether to scale features (e.g., StandardScaler on training data)
+  use_scaler: true
+
+  # ------------------------
+  # Cross‐validation settings
+  # ------------------------
+  cv_kwargs:
+    cv_strategy: "group_kfold"    # e.g. group‐stratified K-Fold, or leave‐one‐out
+    n_splits: 5                   # number of folds
+    shuffle: true                 # shuffle before splitting
+    random_state: 42
+
+  # Column name for grouping (e.g., subject ID) in cross‐validation
+  groups_column: "subject"
+
+  # ------------------------
+  # Feature selection formatting
+  # ------------------------
+  # The separator between spatial unit and feature in your column names,
+  # e.g. "<feature>.spaces-<sensor>".
+  sep: ".spaces-"
+
+  # If your columns are formatted as "<sensor>.spaces-<feature>",
+  # set reverse: true
+  reverse: true
+
+  # If you have no extra covariates, leave this empty.
+  # covariates are additional columns to include in the model like 
+  # demographics, clinical data, etc.
   covariates: []
 
-  groups_column: "subject"  # Column name for grouping (e.g., subject ID) to use in cross-validation
+  # Spatial units (sensors, regions, etc.) present in your data.
+  # These must exactly match the strings used in your column names.
+  spatial_units: ['MRC41', 'MLF61', 'MLC15', 'MRP32', 'MRT41', 'MLF41', 'MLT55', 'MRF25', 'MRC16', 'MRO14', 'MRF33', 'MRT53', 'MRC63', 'MLF32', 'MRF23', 'MRT56', 'MRO32', 'MZC04', 'MRC53', 'MRT14', 'MRP33', 'MLF67', 'MLC31', 'MLO24', 'MLT56', 'MLP54', 'MRT51', 'MRC31', 'MLO34', 'MLP35', 'MZF01', 'MZF03', 'MLC14', 'MRF66', 'MRC23', 'MLO44', 'MRT42', 'MRT46', 'MRF14', 'MRO44', 'MZC02', 'MLT25', 'MRP21', 'MRP52', 'MRP35', 'MRT13', 'MRP12', 'MRO42', 'MRF13', 'MLC12', 'MLT33', 'MRC55', 'MRF52', 'MRF54', 'MRT23', 'MLC16', 'MRC42', 'MLO33', 'MRP11', 'MLT57', 'MLT14', 'MRP34', 'MRC14', 'MRC15', 'MLF12', 'MRF46', 'MLF35', 'MLF63', 'MZC01', 'MLC25', 'MLF11', 'MLT16', 'MRO53', 'MRT27', 'MLP51', 'MRC51', 'MLT47', 'MLC17', 'MLP53', 'MLP12', 'MLT27', 'MRT24', 'MRF62', 'MRT45', 'MRF55', 'MLP52', 'MLO52', 'MRT12', 'MRT55', 'MLC62', 'MLP55', 'MLO53', 'MRF42', 'MLF56', 'MLF25', 'MLP11', 'MRT26', 'MLT54', 'MLT23', 'MLC32', 'MLP32', 'MRO43', 'MRT35', 'MRP22', 'MLP41', 'MLP22', 'MRT44', 'MLF65', 'MRF12', 'MLF23', 'MLT41', 'MRF64', 'MRO12', 'MRT43', 'MRC12', 'MRF61', 'MZP01', 'MRF45', 'MLT15', 'MRF44', 'MLP57', 'MRT47', 'MRF24', 'MRP57', 'MZO03', 'MLF14', 'MRP51', 'MRT22', 'MLT12', 'MRT52', 'MRT34', 'MLF43', 'MLF33', 'MRF56', 'MLT52', 'MLO13', 'MRC61', 'MLF64', 'MRC54', 'MLF53', 'MLC11', 'MLO14', 'MLF54', 'MLF55', 'MRP45', 'MLT21', 'MLF24', 'MLT35', 'MLT42', 'MLC63', 'MLC61', 'MLF13', 'MLT37', 'MRF21', 'MLF44', 'MRC62', 'MRP54', 'MRF22', 'MRC32', 'MRO31', 'MRP42', 'MRP56', 'MLO43', 'MLC23', 'MLC54', 'MRC52', 'MRP43', 'MZO01', 'MLO41', 'MRF65', 'MLF66', 'MLF22', 'MRC21', 'MLC52', 'MRT31', 'MRF41', 'MLO11', 'MLO22', 'MLP33', 'MLC24', 'MLF46', 'MLO31', 'MLP44', 'MLP45', 'MLP56', 'MRT33', 'MRT32', 'MLT24', 'MLT31', 'MRC11', 'MRT57', 'MZO02', 'MLF42', 'MRC17', 'MLT46', 'MLO42', 'MLF21', 'MLP23', 'MRF34', 'MZC03', 'MLC22', 'MLO51', 'MRO33', 'MLC53', 'MRF32', 'MLO21', 'MRF35', 'MRP55', 'MLC21', 'MRF31', 'MRP41', 'MRF43', 'MLO12', 'MRF51', 'MLF62', 'MRF53', 'MLP42', 'MRO13', 'MLF34', 'MZF02', 'MLT26', 'MLC51', 'MRC13', 'MLF51', 'MRO34', 'MRC22', 'MLT53', 'MRO51', 'MRC24', 'MRP53', 'MRO22', 'MLC13', 'MLO23', 'MLP21', 'MLP43', 'MRC25', 'MLP34', 'MLT51', 'MLT34', 'MLF52', 'MRP23', 'MLT11', 'MLF31', 'MRF67', 'MRT25', 'MRT37', 'MLP31', 'MRP44', 'MLT43', 'MRT11', 'MLC41', 'MRO52', 'MLO32', 'MRO11', 'MRO24', 'MLC55', 'MRO23', 'MLF45', 'MRT21', 'MLT45', 'MRT15', 'MRT16', 'MRP31', 'MRF63', 'MLC42', 'MRO21', 'MRT54', 'MLT22', 'MRF11', 'MLT13', 'MLT44']
 
-  # other than the covariates the code can use <unit><sep><feature>
-  # which means that the features are computed for each spatial unit
-  # sep is used to separate the feature name from the spatial unit
-  # e.g., "feature-petrosianFdMeanEpochs.spaces-Channel1"
-  # If you have your columns in <feature><sep><unit>, set reverse to True
-
-  # Spatial units refer to sensors, regions, or other spatial units in your data.
-  spatial_units: [MLF24, MRC63, MRC22, MRT41, MLO42, MLO44, MRP55, MRC24, MRT45, MLO23, MRF56, MLC12, MRC42, MRT42, MLT16, MLF56, MLT44, MRC11, MRP21, MLT55, MRT37, MLC17, MLT26, MLT35, MLT52, MZO01, MLF31, MLT56, MLF65, MLC51, MLF42, MRC15, MRT22, MLO43, MLO51, MLP51, MRC13, MLF61, MRT31, MLC53, MLT43, MLC25, MLO12, MLP22, MRO24, MLP21, MRP33, MRC21, MRF34, MRP57, MLF32, MLF14, MRC23, MRO34, MRP43, MLF33, MRP51, MRT43, MLO52, MRT44, MZC03, MLF54, MLO41, MZF02, MLF52, MLP45, MRC52, MLT37, MRF65, MRF35, MRP32, MLC22, MLF11, MZO02, MLT47, MLF41, MRO43, MLP42, MRF61, MRT16, MLF22, MLT54, MRF13, MLP32, MZP01, MRF21, MLT51, MRT32, MLP34, MLF35, MRT21, MRF53, MRF66, MRO44, MLT42, MLC21, MLC14, MLO13, MRF31, MRF44, MLT13, MLF63, MZF01, MLT31, MLO24, MLO53, MRO14, MZF03, MRO31, MRC14, MLP43, MLO11, MLT23, MLT14, MLP55, MLO32, MLP52, MLC61, MRO52, MLO14, MRF51, MRP56, MRF33, MLP35, MLT57, MLF62, MRF24, MRT27, MRC12, MLF45, MRP41, MRC41, MRT54, MLO34, MLP12, MLF64, MLO33, MRC31, MLP31, MLO21, MRF62, MLF55, MRT35, MRC32, MLC11, MLC23, MRP42, MLC52, MRT13, MLF34, MRC62, MLC63, MRF52, MLT22, MRO22, MLC62, MLF23, MRO23, MRO32, MLC42, MRO33, MRO51, MRT26, MZO03, MRF63, MLT11, MLC32, MLF13, MRO13, MRC51, MRP45, MLT15, MLP41, MLC55, MRF55, MRT25, MRC55, MLT45, MLT21, MLF12, MRT55, MLP57, MRF25, MLC54, MRC17, MRF11, MRP53, MLT24, MRC53, MRT57, MRP34, MLT12, MLP11, MLP33, MRP44, MRC16, MLF21, MRO21, MLP53, MRC54, MRF45, MRF54, MRO11, MRT15, MLF25, MLP23, MLF46, MLC16, MLC31, MRP22, MLF51, MRP52, MRP31, MLT41, MRT24, MRF42, MRF67, MRP35, MLC13, MLC24, MRC25, MLF53, MRO12, MRP12, MRT47, MRF64, MLO31, MRP23, MRF32, MLF67, MRF14, MRP11, MLT33, MLC15, MRO53, MRT12, MLO22, MRT53, MZC04, MRT56, MRT34, MRF23, MZC02, MLF44, MLC41, MRF41, MZC01, MRC61, MLP44, MLT34, MRT52, MLF43, MRF46, MRT33, MRT11, MLP56, MRF12, MLT46, MRO42, MRP54, MRT46, MRT51, MLT53, MRF43, MLT25, MRT14, MLF66, MLP54, MLT27, MRF22, MRT23]
-
-  # list of features computed (for each spatial unit)
-  feature_names: 
-    - 'feature-lzivComplexityMeanEpochs'
+  # Feature names computed for each spatial unit.
+  # These must match the suffix (or prefix, if reverse=true) of each column.
+  feature_names:
+    - feature-lzivComplexityMeanEpochs
     # - 'feature-higuchiFdMeanEpochs'
     # - 'feature-svdEntropyMeanEpochs'
     # - 'feature-higuchiFdVarEpochs'
@@ -65,50 +81,73 @@ defaults:
     # - 'feature-detrendedFluctuationMeanEpochs'
     # - 'feature-petrosianFdMeanEpochs'
 
-  # the separator  
-  sep: ".spaces-" # Separator for multi‐output columns (e.g., "feature-petrosianFdMeanEpochs.spaces-channel1")
+  # ------------------------
+  # Mode & slicing defaults
+  # ------------------------
+  # mode:
+  #   "multivariate" — one run on X as provided (or per‐slice if analysis_unit ≠ "all")
+  #   "univariate"   — loop over each column of X (after slicing by analysis_unit)
+  mode: "multivariate"
 
-  # If you have your columns in <unit><sep><feature>, set reverse to True
-  reverse: true # Whether to reverse the order of <unit> and <feature> in column names
-  verbose: true # Whether to print detailed logs during the analysis
-  use_scaler: true # Whether to apply scaling to the features (e.g., StandardScaler)
-  # This is done with respect to the training set, so that the test set is scaled with the same parameters.
+  # analysis_unit chooses how to slice the full feature matrix before running:
+  #   "all"     — no slicing: all sensors × all features
+  #   "sensor"  — one run per sensor (all features of that sensor)
+  #   "feature" — one run per feature (that feature across all sensors)
+  analysis_unit: "all"
 
 
 # -----------------------------------------------------------------------------
-# Analyses to run: each entry here produces one folder/file in results_dir
+# Analyses to run: each entry produces its own results/<id>/ directory
 # -----------------------------------------------------------------------------
-# for each analysis you want to run on this dataset using the config above, 
-# add a new entry here. Each analysis can have its own parameters.
 analyses:
 
-  # 1) Classification Baseline (multivariate mode)
-  - id: "classification_baseline"  # analyisis ID, must be unique
-    task: "classification"         # "classification"
-    mode: "multivariate"           # "multivariate" (one pipeline on all outputs)
-                                   # or "univariate" (loop per target column), usefull for 1 model per feature and 
-                                   # plotting topomaps of the results
-    analysis_type: "feature_selection"      # could be: baseline, feature_selection, hp_search, hp_search_fs
-    target_columns: ["target"]
+  # 1) Classification Baseline with forward feature selection
+  - id: "classification_baseline"
+    task: "classification"        # "classification" or "regression"
+    mode: "multivariate"          # override default mode if desired
+    analysis_unit: "all"          # "all" | "sensor" | "feature"
+    analysis_type: "feature_selection"  
+    target_columns: ["target"]    # name(s) of your outcome column(s)
 
+    # If doing baseline (no FS or HP search), omit n_features/search_type/n_iter/scoring.
+    # For feature_selection, specify:
+    n_features: 1                 # how many features to select
+    direction: "forward"          # "forward" | "backward" | "both"
+    scoring: "accuracy"           # metric to optimize during FS
+
+    # Models to include (list or "all" for your predefined set)
     models:
-      - "Logistic Regression"     # models to use, can be a list or "all" for all models in your config
-      - "Random Forest"           # Logistic Regression, Decision Tree, Random Forest, Gradient Boosting
-      - "SVC"                     # SVC, KNN, Extra Trees, AdaBoost, HistGradientBoosting
+      - "Logistic Regression"
+      - "Random Forest"
+      - "SVC"
 
+    # Evaluation metrics to compute
     metrics:
-      - "accuracy"                # metrics to compute, can be a list or any of these:
-      - "f1"                      # balanced_accuracy, f1, precision, recall, average_precision, mcc (for matthews_corrcoef)  
-      - "roc_auc"                 # roc_auc and average_precision.
+      - "accuracy"
+      - "f1"
+      - "roc_auc"
 
-    # if you want to do feature selection, you can specify the following parameters:
-    n_features: 1                # how many features to pick
-    direction: "forward"         # "forward", "backward", or "both"
-    scoring: "accuracy"                # which metric to use to select features
-
-    #If you want to run hp search, you can specify the following parameters:
+    # (Optional) hyperparameter search settings, if analysis_type="hp_search" or "hp_search_fs"
     search_type: "grid"           # "grid" or "random"
-    n_iter: 20                    # only used for random search
-    scoring: "accuracy"           # metric to optimize
+    n_iter: 20                    # used only for random search
+    # scoring: "accuracy"         # reuse same scoring metric if different from FS
 
-    # if you want to run feature selection + hyperparameter search, you can specify both of the parameters above.
+  # 2) Example: one model per sensor (multivariate per-sensor run)
+  - id: "classification_by_sensor"
+    task: "classification"
+    mode: "multivariate"
+    analysis_unit: "sensor"
+    analysis_type: "baseline"
+    target_columns: ["target"]
+    models: "all"
+    metrics: ["accuracy"]
+
+  # 3) Example: one model per feature (multivariate per-feature run)
+  - id: "classification_by_feature"
+    task: "classification"
+    mode: "multivariate"
+    analysis_unit: "feature"
+    analysis_type: "baseline"
+    target_columns: ["target"]
+    models: "all"
+    metrics: ["accuracy"]
