@@ -69,7 +69,7 @@ def run_analysis(X, y, groups, analysis_cfg):
         "n_iter":          analysis_cfg.get("n_iter"),
         "scoring":         analysis_cfg.get("scoring"),
         "n_jobs":          analysis_cfg.get("n_jobs"),
-        "save_intermediate": analysis_cfg.get("save_intermediate"),
+        "save_intermediate": analysis_cfg.get("save_intermediate", True),
         "results_dir":     analysis_cfg.get("results_dir"),
         "results_file":    analysis_cfg.get("results_file"),
         "mode":            analysis_cfg.get("mode", "multivariate"),
