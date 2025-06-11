@@ -8,10 +8,10 @@ global_experiment_id: "toy_ml_config_neuro_cocodelics"
 # Path to your input CSV/Parquet/etc: change this to the data you want to analyze 
 data_path: "./local_data/ketamine.csv" 
 
-# Where to write all the per‐analysis and final results
+# Where to write all the per-analysis and final results
 results_dir: "./results"
 
-# Base filename (without extension) for per‐analysis outputs
+# Base filename (without extension) for per-analysis outputs
 results_file: "toy_ml_config_neuro_cocodelics"
 
 # -----------------------------------------------------------------------------
@@ -34,15 +34,15 @@ defaults:
   use_scaler: true
 
   # ------------------------
-  # Cross‐validation settings
+  # Cross-validation settings
   # ------------------------
   cv_kwargs:
-    cv_strategy: "group_kfold"    # e.g. group‐stratified K-Fold, or leave‐one‐out
+    cv_strategy: "group_kfold"    # e.g. group-stratified K-Fold, or leave-one-out
     n_splits: 5                   # number of folds
     shuffle: true                 # shuffle before splitting
     random_state: 42
 
-  # Column name for grouping (e.g., subject ID) in cross‐validation
+  # Column name for grouping (e.g., subject ID) in cross-validation
   groups_column: "subject"
 
   # ------------------------
@@ -69,23 +69,23 @@ defaults:
   # These must match the suffix (or prefix, if reverse=true) of each column.
   feature_names:
     - feature-lzivComplexityMeanEpochs
-    # - 'feature-higuchiFdMeanEpochs'
-    # - 'feature-svdEntropyMeanEpochs'
-    # - 'feature-higuchiFdVarEpochs'
-    # - 'feature-hjorthMobilityMeanEpochs'
-    # - 'feature-hjorthComplexityMeanEpochs'
-    # - 'feature-spectralEntropyMeanEpochs'
-    # - 'feature-numZerocrossMeanEpochs'
-    # - 'feature-katzFdMeanEpochs'
-    # - 'feature-katzFdSDEpochs'
-    # - 'feature-detrendedFluctuationMeanEpochs'
-    # - 'feature-petrosianFdMeanEpochs'
+    - 'feature-higuchiFdMeanEpochs'
+    - 'feature-svdEntropyMeanEpochs'
+    - 'feature-higuchiFdVarEpochs'
+    - 'feature-hjorthMobilityMeanEpochs'
+    - 'feature-hjorthComplexityMeanEpochs'
+    - 'feature-spectralEntropyMeanEpochs'
+    - 'feature-numZerocrossMeanEpochs'
+    - 'feature-katzFdMeanEpochs'
+    - 'feature-katzFdSDEpochs'
+    - 'feature-detrendedFluctuationMeanEpochs'
+    - 'feature-petrosianFdMeanEpochs'
 
   # ------------------------
   # Mode & slicing defaults
   # ------------------------
   # mode:
-  #   "multivariate" — one run on X as provided (or per‐slice if analysis_unit ≠ "all")
+  #   "multivariate" — one run on X as provided (or per-slice if analysis_unit ≠ "all")
   #   "univariate"   — loop over each column of X (after slicing by analysis_unit)
   mode: "multivariate"
 

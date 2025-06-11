@@ -18,7 +18,7 @@ def run_analysis(X, y, groups, analysis_cfg):
     """
     Run one or more MLPipeline runs according to analysis_cfg.
 
-    Supports three multivariate variants (all / per‐sensor / per‐feature) plus
+    Supports three multivariate variants (all / per-sensor / per-feature) plus
     univariate mode inside each slice handled by MLPipeline.
 
     Parameters
@@ -29,7 +29,7 @@ def run_analysis(X, y, groups, analysis_cfg):
     y : pd.Series or np.ndarray
         Target vector or matrix.
     groups : pd.Series or np.ndarray
-        Group labels for cross‐validation (optional).
+        Group labels for cross-validation (optional).
     analysis_cfg : dict
         Must include keys:
           - task, analysis_type, models, metrics, cv_kwargs, n_features, direction,
@@ -42,7 +42,7 @@ def run_analysis(X, y, groups, analysis_cfg):
           - sep           : string separator in column names
           - reverse       : bool, if True swap sensor/feature in names
     """
-    # 1) Prepare X as DataFrame for easy column‐based slicing
+    # 1) Prepare X as DataFrame for easy column-based slicing
     X_df = X if hasattr(X, "columns") else pd.DataFrame(X)
     y_arr = y.values if hasattr(y, "values") else y
     groups_arr = groups.values if hasattr(groups, "values") else groups
