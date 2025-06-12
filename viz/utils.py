@@ -1,9 +1,9 @@
-
-
-
 # fetch results pickle from /home/hamza97/projects/neuro-cocodelics/results
 import os
 import pickle
+import pandas as pd
+import numpy as np
+import json
 
 def load_single_pickle(results_dir, global_experiment_id, analysis_type, task_type, random_state, model_name=None, slice_name=None):
     """
@@ -43,6 +43,31 @@ def load_single_pickle(results_dir, global_experiment_id, analysis_type, task_ty
         results = pickle.load(f)
     return results
     
+def load_aggregated_pickle(aggregated_dir, global_experiment_id, dataset, analysis_type, model_name):
+    """
+    Load the aggregated results pickle file.
+    Filename format:
+    f"{global_experiment_id}_{dataset}_{analysis_type}_{model_name}_perf_metrics.pkl"
+
+    Parameters:
+    - aggregated_dir (str): Directory where the aggregated results pickle files are stored.
+    - global_experiment_id (str): Unique identifier for the experiment.
+    - dataset (str): The dataset name (e.g., "ketamine", "lsd-avg").
+    - analysis_type (str): Type of analysis performed (e.g., "baseline").
+    - model_name (str): Name of the model used in the experiment.
+
+    Returns:
+    - The loaded results object.
+    """
+    pickle_filename = f"{global_experiment_id}_{dataset}_{analysis_type}_{model_name}_perf_metrics.pkl"
+    pickle_path = os.path.join(aggregated_dir, pickle_filename)
+    if not os.path.exists(pickle_path):
+        raise FileNotFoundError(f"Aggregated results file not found: {pickle_path}")
+    
+    with open(pickle_path, 'rb') as f:
+        results = pickle.load(f)
+    return results
+
 def extract_results(results, keys=None, include_fold_scores=False, include_fold_preds=False, include_fold_estimators=False,
                 include_fold_feature_importances=False):
     """
@@ -125,7 +150,7 @@ def aggregate_model_results(slices, results_dir, global_experiment_id, analysis_
         slice_results_extracted_performance = extract_results(slice_results, keys=paths_perfer)
         slice_results_extracted_performance = extract_results(slice_results, keys=paths_feat_imp)    
         aggregate[slice] = slice_results_extracted
-        aggregate_feat_import[]
+        # aggregate_feat_import[]
 
     return aggregate
 
@@ -135,79 +160,38 @@ def save(file, file_path):
 
 
 if __name__ == "__main__":
-    results = load_single_pickle(
-        results_dir="/home/hamza97/scratch/neuro-cocodelics/results",
-        global_experiment_id="neuro_cocodelics_single_sensor_all_features_tiagabine",
-        analysis_type="baseline",
-        task_type="binary",
-        slice_name="MZP01",
-        random_state=42,
-        model_name="Random Forest"
-    )
-    paths = [
-        'metric_scores.accuracy.mean',
-        'metric_scores.accuracy.std',
-        'metric_scores.roc_auc.mean',
-        'metric_scores.roc_auc.std',
-        'metric_scores.f1.mean',
-        'metric_scores.f1.std',
-    ]
-    paths_importances = [
-        f'feature_importances.feature-detrendedFluctuationMeanEpochs.spaces-{slice}.mean',
-        f'feature_importances.feature-detrendedFluctuationMeanEpochs.spaces-{slice}.std',
-        f'feature_importances.feature-higuchiFdMeanEpochs.spaces-{slice}.mean',
-        f'feature_importances.feature-higuchiFdMeanEpochs.spaces-{slice}.std',
-        f'feature_importances.feature-higuchiFdVarEpochs.spaces-{slice}.mean',
-        f'feature_importances.feature-higuchiFdVarEpochs.spaces-{slice}.std',
-        f'feature_importances.feature-hjorthComplexityMeanEpochs.spaces-{slice}.mean',
-        f'feature_importances.feature-hjorthComplexityMeanEpochs.spaces-{slice}.std',
-        f'feature_importances.feature-hjorthMobilityMeanEpochs.spaces-{slice}.mean',
-        f'feature_importances.feature-hjorthMobilityMeanEpochs.spaces-{slice}.std',
-        f'feature_importances.feature-katzFdMeanEpochs.spaces-{slice}.mean',
-        f'feature_importances.feature-katzFdMeanEpochs.spaces-{slice}.std',
-        f'feature_importances.feature-katzFdSDEpochs.spaces-{slice}.mean',
-        f'feature_importances.feature-katzFdSDEpochs.spaces-{slice}.std',
-        f'feature_importances.feature-lzivComplexityMeanEpochs.spaces-{slice}.mean',
-        f'feature_importances.feature-lzivComplexityMeanEpochs.spaces-{slice}.std',
-        f'feature_importances.feature-multiscaleEntropyMeanEpochs.spaces-{slice}.mean',
-        f'feature_importances.feature-multiscaleEntropyMeanEpochs.spaces-{slice}.std',
-        f'feature_importances.feature-numZerocrossMeanEpochs.spaces-{slice}.mean',
-        f'feature_importances.feature-numZerocrossMeanEpochs.spaces-{slice}.std',
-        f'feature_importances.feature-petrosianFdMeanEpochs.spaces-{slice}.mean',
-        f'feature_importances.feature-petrosianFdMeanEpochs.spaces-{slice}.std',
-        f'feature_importances.feature-spectralEntropyMeanEpochs.spaces-{slice}.mean',
-        f'feature_importances.feature-spectralEntropyMeanEpochs.spaces-{slice}.std',
-        f'feature_importances.feature-svdEntropyMeanEpochs.spaces-{slice}.mean',
-        f'feature_importances.feature-svdEntropyMeanEpochs.spaces-{slice}.std',
-    ]
-    slices = ['MRC41', 'MLF61', 'MLC15', 'MRP32', 'MRT41', 'MLF41', 'MLT55', 'MRF25', 'MRC16', 'MRO14', 'MRF33', 'MRT53', 'MRC63', 'MLF32', 'MRF23', 'MRT56', 'MRO32', 'MZC04', 'MRC53', 'MRT14', 'MRP33', 'MLF67', 'MLC31', 'MLO24', 'MLT56', 'MLP54', 'MRT51', 'MRC31', 'MLO34', 'MLP35', 'MZF01', 'MZF03', 'MLC14', 'MRF66', 'MRC23', 'MLO44', 'MRT42', 'MRT46', 'MRF14', 'MRO44', 'MZC02', 'MLT25', 'MRP21', 'MRP52', 'MRP35', 'MRT13', 'MRP12', 'MRO42', 'MRF13', 'MLC12', 'MLT33', 'MRC55', 'MRF52', 'MRF54', 'MRT23', 'MLC16', 'MRC42', 'MLO33', 'MRP11', 'MLT57', 'MLT14', 'MRP34', 'MRC14', 'MRC15', 'MLF12', 'MRF46', 'MLF35', 'MLF63', 'MZC01', 'MLC25', 'MLF11', 'MLT16', 'MRO53', 'MRT27', 'MLP51', 'MRC51', 'MLT47', 'MLC17', 'MLP53', 'MLP12', 'MLT27', 'MRT24', 'MRF62', 'MRT45', 'MRF55', 'MLP52', 'MLO52', 'MRT12', 'MRT55', 'MLC62', 'MLP55', 'MLO53', 'MRF42', 'MLF56', 'MLF25', 'MLP11', 'MRT26', 'MLT54', 'MLT23', 'MLC32', 'MLP32', 'MRO43', 'MRT35', 'MRP22', 'MLP41', 'MLP22', 'MRT44', 'MLF65', 'MRF12', 'MLF23', 'MLT41', 'MRF64', 'MRO12', 'MRT43', 'MRC12', 'MRF61', 'MZP01', 'MRF45', 'MLT15', 'MRF44', 'MLP57', 'MRT47', 'MRF24', 'MRP57', 'MZO03', 'MLF14', 'MRP51', 'MRT22', 'MLT12', 'MRT52', 'MRT34', 'MLF43', 'MLF33', 'MRF56', 'MLT52', 'MLO13', 'MRC61', 'MLF64', 'MRC54', 'MLF53', 'MLC11', 'MLO14', 'MLF54', 'MLF55', 'MRP45', 'MLT21', 'MLF24', 'MLT35', 'MLT42', 'MLC63', 'MLC61', 'MLF13', 'MRF21', 'MLF44', 'MRC62', 'MRP54', 'MRF22', 'MRC32', 'MRO31', 'MRP42', 'MRP56', 'MLO43', 'MLC23', 'MLC54', 'MRC52', 'MRP43', 'MZO01', 'MLO41', 'MRF65', 'MLF66', 'MLF22', 'MRC21', 'MLC52', 'MRT31', 'MRF41', 'MLO22', 'MLP33', 'MLC24', 'MLF46', 'MLO31', 'MLP44', 'MLP45', 'MLP56', 'MRT33', 'MRT32', 'MLT24', 'MLT31', 'MRC11', 'MRT57', 'MZO02', 'MLF42', 'MRC17', 'MLT46', 'MLO42', 'MLF21', 'MLP23', 'MRF34', 'MZC03', 'MLC22', 'MLO51', 'MRO33', 'MLC53', 'MRF32', 'MLO21', 'MRF35', 'MRP55', 'MLC21', 'MRF31', 'MRP41', 'MRF43', 'MLO12', 'MRF51', 'MLF62', 'MRF53', 'MLP42', 'MRO13', 'MLF34', 'MZF02', 'MLT26', 'MLC51', 'MRC13', 'MLF51', 'MRO34', 'MRC22', 'MLT53', 'MRO51', 'MRC24', 'MRP53', 'MRO22', 'MLC13', 'MLO23', 'MLP21', 'MLP43', 'MRC25', 'MLP34', 'MLT51', 'MLT34', 'MLF52', 'MRP23', 'MLT11', 'MLF31', 'MRF67', 'MRT25', 'MRT37', 'MLP31', 'MRP44', 'MLT43', 'MRT11', 'MLC41', 'MRO52', 'MLO32', 'MRO11', 'MRO24', 'MLC55', 'MRO23', 'MLF45', 'MRT21', 'MLT45', 'MRT15', 'MRT16', 'MRP31', 'MRF63', 'MLC42', 'MRO21', 'MRT54', 'MLT22', 'MRF11', 'MLT13', 'MLT44']
+    # Example of loading a single, non-aggregated file
+    # results = load_single_pickle(
+    #     results_dir="/home/hamza97/scratch/neuro-cocodelics/results",
+    #     global_experiment_id="neuro_cocodelics_single_sensor_all_features_tiagabine",
+    #     analysis_type="baseline",
+    #     task_type="binary",
+    #     slice_name="MZP01",
+    #     random_state=42,
+    #     model_name="Random Forest"
+    # )
+    # print("--- Single Result ---")
+    # print(results)
 
-    aggregated = aggregate_model_results(slices, 
-        results_dir="/home/hamza97/scratch/neuro-cocodelics/results",
-        global_experiment_id="neuro_cocodelics_single_sensor_all_features_tiagabine",
+    # Example of loading an aggregated file
+    aggregated_results = load_aggregated_pickle(
+        aggregated_dir="/home/sesma/projects/def-kjerbi/data_neurococodelics/aggregated",
+        global_experiment_id="neuro_cocodelics_single_sensor_all_features",
+        dataset="ketamine",
         analysis_type="baseline",
-        task_type="binary",
-        random_state=42,
-        model_name="SVC",
-        paths=paths)
-    global_experiment_id="neuro_cocodelics_single_sensor_all_features"
-    analysis_type="baseline"
-    task_type="binary"
-    random_state=42
-    model_name="SVC"
-    for model_name in ["SVC", "Random Forest", "Logistic Regression", "Gradient Boosting"]:
-        for dataset in ["lsd-Video", "lsd-Music", "lsd-Open2", "lsd-Open1", "lsd-Closed1", "lsd-Closed2", "lsd-avg", "tiagabine", "perampanel", "ketamine","psilocybin"]:
-            aggregated_path = os.path.join("/home/hamza97/scratch/neuro-cocodelics/aggregated/", f"{global_experiment_id}_{dataset}_{analysis_type}_{model_name}_perf_metrics.pkl")
-            aggregated = aggregate_model_results(
-                    results_dir="/home/hamza97/scratch/neuro-cocodelics/results",
-                    global_experiment_id=f"{global_experiment_id}_{dataset}",
-                    analysis_type="baseline",
-                    task_type="binary",
-                    random_state=42,
-                    model_name=model_name,
-                    slices=slices,
-                    paths=paths)
-            save(aggregated, aggregated_path)
-            print(f" Done {model_name} {dataset}")
+        model_name="Gradient Boosting"
+    )
+    print("\n--- Inspected Aggregated Result (ketamine, Gradient Boosting) ---")
     
+    print(f"\nType of loaded data: {type(aggregated_results)}")
+    
+    if isinstance(aggregated_results, dict):
+        keys = list(aggregated_results.keys())
+        print(f"\nNumber of sensors (top-level keys): {len(keys)}")
+        print(f"Example sensor names: {keys[:5]}")
+
+        first_sensor_key = keys[0]
+        print(f"\nShowing structure for one sensor ('{first_sensor_key}'):")
+        
+        print(json.dumps(aggregated_results[first_sensor_key], indent=4))
 
