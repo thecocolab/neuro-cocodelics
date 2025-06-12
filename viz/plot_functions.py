@@ -252,6 +252,13 @@ def _plot_radar_single(ax, categories, values, vmin=None, vmax=None,
 
     # Grid labels
     ax.set_thetagrids(np.degrees(theta[:-1]), categories)
+    
+    # Improve label formatting to avoid overlap
+    for label in ax.get_xticklabels():
+        label.set_fontsize(8)
+        label.set_rotation(label.get_rotation() + 2)  # slight tilt
+        label.set_ha('center')
+        label.set_va('center')
 
     if vmin is None:
         vmin = np.nanmin(vals)
@@ -259,6 +266,10 @@ def _plot_radar_single(ax, categories, values, vmin=None, vmax=None,
         vmax = np.nanmax(vals)
 
     ax.set_ylim(vmin, vmax)
+    
+    # Improve radial axis formatting
+    ax.set_rlabel_position(0)
+    ax.tick_params(axis='y', labelsize=7, pad=2)
 
     # Draw polygon
     line_kwargs = dict(line_kwargs or {})
@@ -525,9 +536,11 @@ def _pivot_feature_importance_data(importance_data_dict):
                 match = pattern.match(long_key)
                 if match:
                     feature_name = match.group(1)
+                    # Take absolute value before aggregation
+                    value_abs = abs(value)
                     if feature_name not in feature_values:
                         feature_values[feature_name] = []
-                    feature_values[feature_name].append(value)
+                    feature_values[feature_name].append(value_abs)
         
         # Average across all sensors for each feature
         for feature_name, values in feature_values.items():
@@ -544,13 +557,14 @@ def make_feature_importance_radar_grid(
     model_name,
     features_to_show=None,
     save_path=None,
-    figsize=(10, 8),
+    figsize=(16, 7),
     dpi=300,
     file_format="png",
-    fill_alpha=0.25,
+    fill_alpha=0.20,
     color_cycle=None,
     vmin=None,
     vmax=None,
+    drug_groups=None,
 ):
     """Create a radar plot comparing feature importance across drugs."""
     # 1. Load data for all requested drugs
@@ -598,33 +612,65 @@ def make_feature_importance_radar_grid(
             if vmin is None: vmin = np.nanmin(all_vals)
             if vmax is None: vmax = np.nanmax(all_vals)
 
-    # 5. Set up figure
-    fig, ax = plt.subplots(subplot_kw={"polar": True}, figsize=figsize, facecolor="white")
-    color_cycle = color_cycle or plt.rcParams["axes.prop_cycle"].by_key()["color"]
+    # 5. Set up figure with optional grouping
+    groups = drug_groups or [drug_names]  # fall-back to single group
+    n_panels = len(groups)
+    
+    fig, axes = plt.subplots(
+        1, n_panels,
+        subplot_kw={"polar": True},
+        figsize=figsize,
+        facecolor="white"
+    )
+    axes = np.atleast_1d(axes)  # make iterable
+    
+    # Color cycles for different panels
+    cycle_panel1 = plt.cm.tab10.colors
+    cycle_panel2 = plt.cm.Set2.colors
+    color_cycles = [cycle_panel1, cycle_panel2]
 
     # 6. Draw each radar plot
-    for i, drug_name in enumerate(drug_names):
-        if drug_name not in pivoted_data:
-            continue
+    for panel_idx, (ax, group) in enumerate(zip(axes, groups)):
+        current_color_cycle = color_cycles[panel_idx % len(color_cycles)]
         
-        values = [pivoted_data[drug_name].get(f, np.nan) for f in features]
+        # Store line objects and labels for legend
+        legend_lines = []
+        legend_labels = []
         
-        _plot_radar_single(
-            ax, features, values, vmin=vmin, vmax=vmax, fill_alpha=fill_alpha,
-            line_kwargs={"color": color_cycle[i % len(color_cycle)], "linewidth": 2},
-            fill_kwargs={"color": color_cycle[i % len(color_cycle)]},
-            label=drug_name.title(),
-        )
-    
-    ax.legend(loc="upper right", bbox_to_anchor=(1.35, 1.15), fontsize=9, frameon=False)
+        for i, drug_name in enumerate(group):
+            if drug_name not in pivoted_data:
+                continue
+            
+            values = [pivoted_data[drug_name].get(f, np.nan) for f in features]
+            
+            # Create clean drug label
+            clean_label = drug_name.replace('-', ' ').title()
+            if 'Lsd' in clean_label:
+                clean_label = clean_label.replace('Lsd', 'LSD')
+            
+            line = _plot_radar_single(
+                ax, features, values, vmin=vmin, vmax=vmax, fill_alpha=fill_alpha,
+                line_kwargs={"color": current_color_cycle[i % len(current_color_cycle)], "linewidth": 2},
+                fill_kwargs={"color": current_color_cycle[i % len(current_color_cycle)]},
+                label=clean_label,
+            )
+            
+            # Store for legend
+            legend_lines.append(line)
+            legend_labels.append(clean_label)
+        
+        # Create legend with our stored lines and labels
+        if legend_lines:
+            ax.legend(legend_lines, legend_labels, loc="center left", bbox_to_anchor=(1.1, 0.5), fontsize=9, frameon=True, 
+                     framealpha=0.9, edgecolor='gray', fancybox=True)
 
     # 7. Finalize and save
     fig.suptitle(
-        f'Mean Feature Importance Radar: {model_name}\nAnalysis: {analysis_type.title()}',
-        fontsize=16, fontweight="bold", y=0.98,
+        f'Feature Importance Comparison: {model_name}\nAnalysis: {analysis_type.title()}',
+        fontsize=16, fontweight="bold", y=0.95,
     )
-    fig.tight_layout(pad=3.0, h_pad=4.0, w_pad=4.0)
-    fig.subplots_adjust(top=0.85)
+    fig.tight_layout()
+    fig.subplots_adjust(top=0.85, wspace=0.4, right=0.85)
 
     if save_path:
         final_save_path = f"{save_path}.{file_format}"
@@ -644,25 +690,21 @@ if __name__ == '__main__':
     # --- Example for Feature Importance Radar Plot ---
     try:
         print("\n--- Generating Feature Importance Radar Grid ---")
-        drug_list = [
-            "psilocybin",
-            "tiagabine",
-            "perampanel",
-            "lsd-avg",
-            "lsd-Closed1",
-            "lsd-Closed2",
-            "lsd-Music",
-            "lsd-Open1",
-            "lsd-Open2",
-            "lsd-Video",
+        drug_groups = [
+            ["psilocybin", "tiagabine", "perampanel", "lsd-avg"],          # left panel
+            ["lsd-Closed1", "lsd-Closed2", "lsd-Music",
+             "lsd-Open1", "lsd-Open2", "lsd-Video"]                        # right panel
         ]
+        drug_list = [d for grp in drug_groups for d in grp]  # flatten for drug_names
+        
         fig_feat = make_feature_importance_radar_grid(
             aggregated_dir=AGGREGATED_DIR,
             global_experiment_id=GLOBAL_EXPERIMENT_ID,
             drug_names=drug_list,
+            drug_groups=drug_groups,
             analysis_type=ANALYSIS_TYPE,
             model_name=MODEL_NAME,
-            save_path=f'fig_feat_importance_{MODEL_NAME.replace(" ", "_")}',
+            save_path=f'fig_feat_importance_{MODEL_NAME.replace(" ", "_")}_two_panel',
         )
         if fig_feat:
             print("✅ Successfully generated feature importance radar figure.")
