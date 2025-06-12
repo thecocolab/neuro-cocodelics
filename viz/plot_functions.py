@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mne
 import sys
-sys.path.append(os.path.dirname(__file__))
+sys.path.insert(0, os.path.dirname(__file__))
 from utils import load_aggregated_pickle
 
 # --- Globals and Constants ---
@@ -43,69 +43,63 @@ def extract_performance_metrics(aggregated_results):
 
 def _prepare_data_for_topomap(data_dict, info):
     """
-    Creates a dictionary mapping full channel names to their corresponding data values.
-    MNE's plot_topomap can directly use a dictionary for robust plotting.
+    Prepares the data dictionary so that keys correspond to the **base** sensor names
+    (e.g. 'MRC41') expected by the MNE layout used later for plotting.
+
+    Parameters
+    ----------
+    data_dict : dict
+        Mapping ``{sensor_name_base: value}`` obtained from the aggregated
+        performance pickle.
+    info : mne.Info
+        The measurement info read from the CTF FIF file. Currently not used but
+        kept as a parameter to preserve the public signature.
+
+    Returns
+    -------
+    dict
+        ``{base_sensor_name: value}`` – ready to be consumed by
+        ``_plot_topomap_single``.
     """
-    sensor_to_value = {name: val for name, val in data_dict.items()}
-    
-    # Create a mapping from the base sensor name (e.g., 'MRC41') to the full channel name (e.g., 'MRC41-1571')
-    base_name_to_full_name = {ch_name.split('-')[0]: ch_name for ch_name in info['ch_names']}
-    
-    # Map the data values to the full channel names
-    data_for_mne = {}
-    for base_name, value in sensor_to_value.items():
-        if base_name in base_name_to_full_name:
-            full_name = base_name_to_full_name[base_name]
-            data_for_mne[full_name] = value
-            
-    return data_for_mne
+    # The aggregated results already come with base sensor names (e.g. 'MRC41').
+    # We therefore simply return a *copy* of the incoming dict to make it clear
+    # that this function performs no further conversion.
+    return dict(data_dict)
 
 # --- Core Plotting Function ---
 
 def _plot_topomap_single(ax, data_dict, info, vmin, vmax, cmap, title, plot_style, show_sensors):
     """A private helper function to plot a single topomap."""
-    
-    # Extract values and names in the correct order for MNE
-    ordered_names = info['ch_names']
-    data_values = np.array([data_dict.get(name, np.nan) for name in ordered_names])
 
-    # Get layout and create proper mapping
+    # Obtain MEG sensor layout for CTF system
     layout = mne.find_layout(info, ch_type='meg')
-    
-    # Map data to layout positions by matching base names
     layout_base_names = [name.split('-')[0] if '-' in name else name for name in layout.names]
-    info_base_names = [name.split('-')[0] for name in ordered_names]
-    
-    # Create arrays that match layout dimensions
-    layout_data = np.full(len(layout.names), np.nan)
-    
-    for i, layout_base in enumerate(layout_base_names):
-        # Find corresponding data value
-        if layout_base in data_dict:
-            layout_data[i] = data_dict[layout_base]
-        else:
-            # Try to find in info mapping
-            for j, info_base in enumerate(info_base_names):
-                if info_base == layout_base and not np.isnan(data_values[j]):
-                    layout_data[i] = data_values[j]
-                    break
 
-    # Now plot with properly matched dimensions
+    # Build an array with the data values in the *layout* order
+    layout_data_np = np.array([data_dict.get(base_name, np.nan) for base_name in layout_base_names])
+
+    # Convert to standard Python floats to ensure compatibility
+    layout_data = [float(x) if not np.isnan(x) else np.nan for x in layout_data_np]
+    layout_data = np.array(layout_data)
+    # Plot
     im, _ = mne.viz.plot_topomap(
-        layout_data, layout.pos, 
-        show=False, 
-        vlim=(vmin, vmax), 
-        cmap=cmap, 
+        layout_data,
+        layout.pos,
+        show=False,
+        vlim=(vmin, vmax),
+        cmap=None,
         axes=ax,
         contours=6,
+        outlines='head',
         sensors=show_sensors,
-        sphere=None  # Let MNE determine from layout
+        sphere=None,
+        extrapolate='auto'
     )
 
     ax.set_title(title, fontsize=11, fontweight='bold', pad=8)
     for spine in ax.spines.values():
         spine.set_visible(False)
-    
+
     return im
 
 # --- Main Public Function ---
@@ -143,7 +137,8 @@ def make_performance_topomap_grid(
         return None
 
     # 3. Setup grid and color scale
-    plot_titles = list(all_plots_data.keys())
+    plot_titles_raw = list(all_plots_data.keys())
+    plot_titles = [title.replace('metric_scores.', '').replace('.mean', '').replace('_', ' ').title() for title in plot_titles_raw]
     n_plots = len(plot_titles)
     
     if n_plots == 0:
@@ -163,9 +158,9 @@ def make_performance_topomap_grid(
 
     # 4. Create all plots
     im = None
-    for i, title in enumerate(plot_titles):
-        im = _plot_topomap_single(axes[i], all_plots_data[title], info, vmin, vmax, 
-                                  cmap, title, plot_style, show_sensors)
+    for i, title_key in enumerate(plot_titles_raw):
+        im = _plot_topomap_single(axes[i], all_plots_data[title_key], info, vmin, vmax, 
+                                  cmap, plot_titles[i], plot_style, show_sensors)
 
     for i in range(n_plots, len(axes)):
         axes[i].set_visible(False)

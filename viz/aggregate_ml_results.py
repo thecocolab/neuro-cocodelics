@@ -154,6 +154,16 @@ def save_object(obj: Any, file_path: str) -> None:
         pickle.dump(obj, f)
 
 
+def load_aggregated_pickle(aggregated_dir: str, global_experiment_id: str, dataset: str, analysis_type: str, model_name: str):
+    """Load aggregated performance metrics pickle produced by `aggregate_model_results`."""
+    filename = f"{global_experiment_id}_{dataset}_{analysis_type}_{model_name}_perf_metrics.pkl"
+    file_path = Path(aggregated_dir) / filename
+    if not file_path.exists():
+        raise FileNotFoundError(f"Aggregated results file not found: {file_path}")
+    with file_path.open("rb") as f:
+        return pickle.load(f)
+
+
 def main():
     # Example usage
     RESULTS_DIR = "/home/hamza97/scratch/neuro-cocodelics/results"
@@ -197,7 +207,7 @@ def main():
         'feature_importances.feature-svdEntropyMeanEpochs.spaces-{slice}.std',
     ]
 
-    for model in ["Logistic Regression", "Logistic Regression", "Gradient Boosting","SVC"]:
+    for model in [ "Random Forest", "Gradient Boosting","SVC"]:
         for dataset in ["psilocybin", "lsd-Video", "lsd-Music", "lsd-Open2", "lsd-Open1",
                         "lsd-Closed1", "lsd-Closed2", "lsd-avg",
                         "tiagabine", "perampanel"]: #ketamine
