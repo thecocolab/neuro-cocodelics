@@ -37,7 +37,7 @@ defaults:
   # Cross-validation settings
   # ------------------------
   cv_kwargs:
-    cv_strategy: "leave-one-out"    # e.g. group-stratified K-Fold, or leave-one-out
+    cv_strategy: "leave_one_out"    # e.g. group-stratified K-Fold, or leave-one-out
     shuffle: true                 # shuffle before splitting
     random_state: 42
 
