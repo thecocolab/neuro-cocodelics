@@ -1,7 +1,7 @@
 #!/bin/bash
-#SBATCH --account=def-shahabkb          
+#SBATCH --account=rrg-shahabkb          
 #SBATCH --job-name=tiagabine_single_sensor_all_features
-#SBATCH --time=5:59:00               
+#SBATCH --time=11:59:00               
 #SBATCH --cpus-per-task=32           # match YAML n_jobs
 #SBATCH --ntasks=1                     # one task with multiple threads
 #SBATCH --mem-per-cpu=1G                    # 4 GB × 6 cores (cluster guideline)

@@ -1,11 +1,11 @@
 #!/bin/bash
 #SBATCH --account=rrg-shahabkb          
-#SBATCH --job-name=lsd_open2_single_sensor_all_features
-#SBATCH --time=11:59:00               
+#SBATCH --job-name=video_single_sensor_all_features
+#SBATCH --time=5:59:00               
 #SBATCH --cpus-per-task=32           # match YAML n_jobs
 #SBATCH --ntasks=1                     # one task with multiple threads
 #SBATCH --mem-per-cpu=1G                    # 4 GB × 6 cores (cluster guideline)
-#SBATCH --output=logs/lsd-open2_%x_%j.out
+#SBATCH --output=logs/video_%x_%j.out
 
 # 1) software stack
 module load StdEnv/2023 python/3.11            # Narval/Béluga CPU modules
@@ -19,4 +19,4 @@ export NUMEXPR_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 # 3) run the analysis
 srun python $HOME/neuro-cocodelics/machine-learning/run_ml.py \
-    --config $HOME/neuro-cocodelics/machine-learning/configs/config_lsd-open2_single_sensor_all_features.yml
+    --config $HOME/neuro-cocodelics/machine-learning/configs/config_lsd-video_single_sensor_all_features.yml

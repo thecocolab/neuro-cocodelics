@@ -1,0 +1,145 @@
+# -----------------------------------------------------------------------------
+# neuro_cocodelics toy config for coco_pipe MLPipeline
+# -----------------------------------------------------------------------------
+
+# A unique identifier for this entire experiment
+global_experiment_id: "neuro_cocodelics_single_feature_all_sensors_lsd-Video"
+
+# Path to your input CSV/Parquet/etc: change this to the data you want to analyze
+data_path: "/home/hamza97/neuro-cocodelics/local_data/lsd-Video.csv"
+
+# Where to write all the per-analysis and final results
+results_dir: "/home/hamza97/scratch/neuro-cocodelics/results"
+
+# Base filename (without extension) for per-analysis outputs
+results_file: "neuro_cocodelics_single_feature_all_sensors_lsd-Video"
+
+# -----------------------------------------------------------------------------
+# Defaults: values here apply to every analysis unless overridden below
+# -----------------------------------------------------------------------------
+defaults:
+  # ------------------------
+  # General settings
+  # ------------------------
+  # Random seed for reproducibility
+  random_state: 42
+
+  # Number of parallel jobs (−1 = all cores)
+  n_jobs: -1
+
+  # Whether to print detailed logs during each analysis
+  verbose: true
+
+  # Whether to scale features (e.g., StandardScaler on training data)
+  use_scaler: true
+
+  # ------------------------
+  # Cross-validation settings
+  # ------------------------
+  cv_kwargs:
+    cv_strategy: "leave_one_out"    # e.g. group-stratified K-Fold, or leave-one-out
+    shuffle: true                 # shuffle before splitting
+    random_state: 42
+
+  # Column name for grouping (e.g., subject ID) in cross-validation
+  groups_column: "subject"
+
+  # ------------------------
+  # Feature selection formatting
+  # ------------------------
+  # The separator between spatial unit and feature in your column names,
+  # e.g. "<feature>.spaces-<sensor>".
+  sep: ".spaces-"
+
+  # If your columns are formatted as "<sensor>.spaces-<feature>",
+  # set reverse: true
+  reverse: true
+
+  # If you have no extra covariates, leave this empty.
+  # covariates are additional columns to include in the model like 
+  # demographics, clinical data, etc.
+  covariates: []
+
+  # Spatial units (sensors, regions, etc.) present in your data.
+  # These must exactly match the strings used in your column names.
+  spatial_units: ['MRC41', 'MLF61', 'MLC15', 'MRP32', 'MRT41', 'MLF41', 'MLT55', 'MRF25', 'MRC16', 'MRO14', 'MRF33', 'MRT53', 'MRC63', 'MLF32', 'MRF23', 'MRT56', 'MRO32', 'MZC04', 'MRC53', 'MRT14', 'MRP33', 'MLF67', 'MLC31', 'MLO24', 'MLT56', 'MLP54', 'MRT51', 'MRC31', 'MLO34', 'MLP35', 'MZF01', 'MZF03', 'MLC14', 'MRF66', 'MRC23', 'MLO44', 'MRT42', 'MRT46', 'MRF14', 'MRO44', 'MZC02', 'MLT25', 'MRP21', 'MRP52', 'MRP35', 'MRT13', 'MRP12', 'MRO42', 'MRF13', 'MLC12', 'MLT33', 'MRC55', 'MRF52', 'MRF54', 'MRT23', 'MLC16', 'MRC42', 'MLO33', 'MRP11', 'MLT57', 'MLT14', 'MRP34', 'MRC14', 'MRC15', 'MLF12', 'MRF46', 'MLF35', 'MLF63', 'MZC01', 'MLC25', 'MLF11', 'MLT16', 'MRO53', 'MRT27', 'MLP51', 'MRC51', 'MLT47', 'MLC17', 'MLP53', 'MLP12', 'MLT27', 'MRT24', 'MRF62', 'MRT45', 'MRF55', 'MLP52', 'MLO52', 'MRT12', 'MRT55', 'MLC62', 'MLP55', 'MLO53', 'MRF42', 'MLF56', 'MLF25', 'MLP11', 'MRT26', 'MLT54', 'MLT23', 'MLC32', 'MLP32', 'MRO43', 'MRT35', 'MRP22', 'MLP41', 'MLP22', 'MRT44', 'MLF65', 'MRF12', 'MLF23', 'MLT41', 'MRF64', 'MRO12', 'MRT43', 'MRC12', 'MRF61', 'MZP01', 'MRF45', 'MLT15', 'MRF44', 'MLP57', 'MRT47', 'MRF24', 'MRP57', 'MZO03', 'MLF14', 'MRP51', 'MRT22', 'MLT12', 'MRT52', 'MRT34', 'MLF43', 'MLF33', 'MRF56', 'MLT52', 'MLO13', 'MRC61', 'MLF64', 'MRC54', 'MLF53', 'MLC11', 'MLO14', 'MLF54', 'MLF55', 'MRP45', 'MLT21', 'MLF24', 'MLT35', 'MLT42', 'MLC63', 'MLC61', 'MLF13', 'MLT37', 'MRF21', 'MLF44', 'MRC62', 'MRP54', 'MRF22', 'MRC32', 'MRO31', 'MRP42', 'MRP56', 'MLO43', 'MLC23', 'MLC54', 'MRC52', 'MRP43', 'MZO01', 'MLO41', 'MRF65', 'MLF66', 'MLF22', 'MRC21', 'MLC52', 'MRT31', 'MRF41', 'MLO11', 'MLO22', 'MLP33', 'MLC24', 'MLF46', 'MLO31', 'MLP44', 'MLP45', 'MLP56', 'MRT33', 'MRT32', 'MLT24', 'MLT31', 'MRC11', 'MRT57', 'MZO02', 'MLF42', 'MRC17', 'MLT46', 'MLO42', 'MLF21', 'MLP23', 'MRF34', 'MZC03', 'MLC22', 'MLO51', 'MRO33', 'MLC53', 'MRF32', 'MLO21', 'MRF35', 'MRP55', 'MLC21', 'MRF31', 'MRP41', 'MRF43', 'MLO12', 'MRF51', 'MLF62', 'MRF53', 'MLP42', 'MRO13', 'MLF34', 'MZF02', 'MLT26', 'MLC51', 'MRC13', 'MLF51', 'MRO34', 'MRC22', 'MLT53', 'MRO51', 'MRC24', 'MRP53', 'MRO22', 'MLC13', 'MLO23', 'MLP21', 'MLP43', 'MRC25', 'MLP34', 'MLT51', 'MLT34', 'MLF52', 'MRP23', 'MLT11', 'MLF31', 'MRF67', 'MRT25', 'MRT37', 'MLP31', 'MRP44', 'MLT43', 'MRT11', 'MLC41', 'MRO52', 'MLO32', 'MRO11', 'MRO24', 'MLC55', 'MRO23', 'MLF45', 'MRT21', 'MLT45', 'MRT15', 'MRT16', 'MRP31', 'MRF63', 'MLC42', 'MRO21', 'MRT54', 'MLT22', 'MRF11', 'MLT13', 'MLT44']
+
+  # Feature names computed for each spatial unit.
+  # These must match the suffix (or prefix, if reverse=true) of each column.
+  feature_names:
+    - feature-lzivComplexityMeanEpochs
+    - feature-higuchiFdMeanEpochs
+    - feature-svdEntropyMeanEpochs
+    - feature-higuchiFdVarEpochs
+    - feature-hjorthMobilityMeanEpochs
+    - feature-hjorthComplexityMeanEpochs
+    - feature-spectralEntropyMeanEpochs
+    - feature-numZerocrossMeanEpochs
+    - feature-katzFdMeanEpochs
+    - feature-katzFdSDEpochs
+    - feature-detrendedFluctuationMeanEpochs
+    - feature-petrosianFdMeanEpochs
+
+  # ------------------------
+  # Mode & slicing defaults
+  # ------------------------
+  # mode:
+  #   "multivariate" — one run on X as provided (or per-slice if analysis_unit ≠ "all")
+  #   "univariate"   — loop over each column of X (after slicing by analysis_unit)
+  mode: "multivariate"
+
+  # analysis_unit chooses how to slice the full feature matrix before running:
+  #   "all"     — no slicing: all sensors × all features
+  #   "sensor"  — one run per sensor (all features of that sensor)
+  #   "feature" — one run per feature (that feature across all sensors)
+  analysis_unit: "feature"
+  scoring: "accuracy"
+
+
+# -----------------------------------------------------------------------------
+# Analyses to run: each entry produces its own results/<id>/ directory
+# -----------------------------------------------------------------------------
+analyses:
+
+  # 1) Classification Baseline with forward feature selection
+  - id: "classification_baseline"
+    task: "classification"        # "classification" or "regression"
+    mode: "multivariate"          # override default mode if desired
+    analysis_unit: "feature"      # "all" | "sensor" | "feature"
+    analysis_type: "baseline"  
+    target_columns: ["target"]    # name(s) of your outcome column(s)
+
+
+    # Models to include (list or "all" for your predefined set)
+    models:
+      - "Logistic Regression"
+
+    # Evaluation metrics to compute
+    metrics:
+      - "accuracy"
+      - "f1"
+      - "roc_auc"
+
+  # 1) Classification Baseline with forward feature selection
+  - id: "classification_baseline"
+    task: "classification"        # "classification" or "regression"
+    mode: "multivariate"          # override default mode if desired
+    analysis_unit: "feature"      # "all" | "sensor" | "feature"
+    analysis_type: "hp_search"  
+    target_columns: ["target"]    # name(s) of your outcome column(s)
+
+
+    # Models to include (list or "all" for your predefined set)
+    models:
+      - "Logistic Regression"
+
+    # Evaluation metrics to compute
+    metrics:
+      - "accuracy"
+      - "f1"
+      - "roc_auc"
+    
+    n_iter: 50
+    search_type: "random"         # "grid" or "random"
+    
+    

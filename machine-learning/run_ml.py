@@ -89,11 +89,17 @@ def run_analysis(X, y, groups, analysis_cfg):
     def _run_slice(X_sub, label):
         logger.info("  • pipeline slice=%r, shape=%s", label, X_sub.shape)
         X_arr = X_sub
+        # copy base config and update results_file to include slice label
+        cfg_slice = deepcopy(base_cfg)
+        # amend results filename if specified
+        if "results_file" in cfg_slice:
+            base_name, ext = os.path.splitext(cfg_slice["results_file"])
+            cfg_slice["results_file"] = f"{base_name}_{label}{ext}"
         pipeline = MLPipeline(
             X=X_arr,
             y=y_arr,
             groups=groups_arr,
-            config=base_cfg
+            config=cfg_slice
         )
         return pipeline.run()
 
