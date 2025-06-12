@@ -1,0 +1,19 @@
+[build-system]
+build-backend = "setuptools.build_meta"
+requires = ["setuptools"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.packages.find]
+include = ["cocodelics*"]
+where = ["."]
+
+[tool.black]
+line-length = 128
+
+[project]
+dynamic = ["dependencies"]
+name = "cocodelics"
+requires-python = ">=3.9"
+version = "0.0.1"

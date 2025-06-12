@@ -1,2 +1,2 @@
 numpy>=1.21.0
--e git+https://github.com/BabaSanfour/coco-pipe.git#egg=cocopipe
+cocopipe @ git+https://github.com/BabaSanfour/coco-pipe.git#egg=cocopipe
