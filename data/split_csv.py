@@ -52,7 +52,7 @@ logger.addHandler(console_handler)
 if __name__ == "__main__":
 
     # Load the aggregate CSV file
-    aggregate_file = "./local_data/aggregate@raw.csv"
+    aggregate_file = "./local_data/aggregate@raw-2.csv"
     if not os.path.exists(aggregate_file):
         raise FileNotFoundError(f"Aggregate file {aggregate_file} does not exist.")
     aggregate_df = pd.read_csv(aggregate_file)
@@ -74,8 +74,8 @@ if __name__ == "__main__":
         unique_nan_sensors = set(col.split('.spaces')[1] for col in nan_columns if '.spaces' in col)
         nan_filepaths = list(set(aggregate_df.loc[list(unique_nan_rows), 'filepath'].unique().tolist()))
 
-        # Drop rows with NaN values
-        aggregate_df.dropna(inplace=True)
+        # Drop columns with NaN values
+        aggregate_df.dropna(axis=1, inplace=True)
         logging.warning(f"Found NaN values in the dataset. These rows have been dropped."
                         f"Rows with NaN values: {unique_nan_rows}. "
                         f"Unique sensors with NaN values: {unique_nan_sensors}. "
@@ -113,7 +113,11 @@ if __name__ == "__main__":
     # Some IDs are not unique across datasets, so we need to create a unique identifier for each subject
     aggregate_df['subject'] = aggregate_df['dataset'] + '_' + aggregate_df['subject']
     # Convert subject column to unique integer identifiers
-    aggregate_df['subject'] = pd.factorize(aggregate_df['subject'])[0] + 1
+    labels, uniques = pd.factorize(aggregate_df['subject'])
+    aggregate_df['subject'] = labels + 1
+    mapping = {i + 1: subject for i, subject in enumerate(uniques)}
+    logging.info("Mapping of new subject IDs to original subject IDs:")
+    print(mapping)
     logging.info("Converted subject column to unique integer identifiers across all datasets.")
 
     aggregate_df['target'] = aggregate_df['filepath'].apply(
