@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=rrg-shahabkb          
 #SBATCH --job-name=psil_single_feature_all_sensors
-#SBATCH --time=5:59:00               
+#SBATCH --time=00:59:00               
 #SBATCH --cpus-per-task=32           # match YAML n_jobs
 #SBATCH --ntasks=1                     # one task with multiple threads
 #SBATCH --mem-per-cpu=1G                    # 4 GB × 6 cores (cluster guideline)

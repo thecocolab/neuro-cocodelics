@@ -3,16 +3,16 @@
 # -----------------------------------------------------------------------------
 
 # A unique identifier for this entire experiment
-global_experiment_id: "neuro_cocodelics_single_feature_all_sensors_lsd-Closed1"
+global_experiment_id: "neuro_cocodelics_v2_single_feature_all_sensors_lsd-Closed1"
 
 # Path to your input CSV/Parquet/etc: change this to the data you want to analyze
 data_path: "/home/hamza97/neuro-cocodelics/local_data/lsd-Closed1.csv"
 
 # Where to write all the per-analysis and final results
-results_dir: "/home/hamza97/scratch/neuro-cocodelics/results"
+results_dir: "/home/hamza97/scratch/neuro-cocodelics/results_v2"
 
 # Base filename (without extension) for per-analysis outputs
-results_file: "neuro_cocodelics_single_feature_all_sensors_lsd-Closed1"
+results_file: "neuro_cocodelics_v2_single_feature_all_sensors_lsd-Closed1"
 
 # -----------------------------------------------------------------------------
 # Defaults: values here apply to every analysis unless overridden below
@@ -66,19 +66,7 @@ defaults:
 
   # Feature names computed for each spatial unit.
   # These must match the suffix (or prefix, if reverse=true) of each column.
-  feature_names:
-    - feature-lzivComplexityMeanEpochs
-    - feature-higuchiFdMeanEpochs
-    - feature-svdEntropyMeanEpochs
-    - feature-higuchiFdVarEpochs
-    - feature-hjorthMobilityMeanEpochs
-    - feature-hjorthComplexityMeanEpochs
-    - feature-spectralEntropyMeanEpochs
-    - feature-numZerocrossMeanEpochs
-    - feature-katzFdMeanEpochs
-    - feature-katzFdSDEpochs
-    - feature-detrendedFluctuationMeanEpochs
-    - feature-petrosianFdMeanEpochs
+  feature_names: ['spectralEntropySDEpochs', 'hjorthComplexityMeanEpochs', 'svdEntropySDEpochs', 'katzFdMeanEpochs', 'svdEntropyMeanEpochs', 'katzFdSDEpochs', 'petrosianFdMeanEpochs', 'lzivComplexityMeanEpochs', 'detrendedFluctuationSDEpochs', 'spectralEntropyMeanEpochs', 'numZerocrossMeanEpochs', 'higuchiFdVarEpochs', 'higuchiFdMeanEpochs', 'petrosianFdSDEpochs', 'lzivComplexitySDEpochs', 'hjorthMobilitySDEpochs', 'hjorthMobilityMeanEpochs', 'higuchiFdSDEpochs', 'detrendedFluctuationMeanEpochs', 'numZerocrossSDEpochs', 'hjorthComplexitySDEpochs']
 
   # ------------------------
   # Mode & slicing defaults
