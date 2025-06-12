@@ -43,7 +43,7 @@ def run_analysis(X, y, groups, analysis_cfg):
           - reverse       : bool, if True swap sensor/feature in names
     """
     # 1) Prepare X as DataFrame for easy column-based slicing
-    X_df = X if hasattr(X, "columns") else pd.DataFrame(X)
+    X_df = X
     y_arr = y.values if hasattr(y, "values") else y
     groups_arr = groups.values if hasattr(groups, "values") else groups
 
@@ -88,7 +88,7 @@ def run_analysis(X, y, groups, analysis_cfg):
     # Helper to run one slice of X through MLPipeline
     def _run_slice(X_sub, label):
         logger.info("  • pipeline slice=%r, shape=%s", label, X_sub.shape)
-        X_arr = X_sub.values if hasattr(X_sub, "values") else X_sub
+        X_arr = X_sub
         pipeline = MLPipeline(
             X=X_arr,
             y=y_arr,
