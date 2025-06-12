@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import mne
 import sys
+import re
 sys.path.insert(0, os.path.dirname(__file__))
 # from utils import load_aggregated_pickle
 
@@ -12,16 +13,16 @@ def load_aggregated_pickle(
     aggregated_dir, global_experiment_id, dataset, analysis_type, model_name
 ):
     """Loads a standard aggregated results pickle file for performance."""
-    file_name = (
-        f"{global_experiment_id}_{dataset}_{analysis_type}_{model_name}.pkl"
-    )
+    # Try primary format first
+    file_name = f"{global_experiment_id}_{dataset}_{analysis_type}_{model_name}.pkl"
     full_path = os.path.join(aggregated_dir, file_name)
+
     if not os.path.exists(full_path):
-        # Fallback for older naming convention if needed
-        file_name_alt = f"{global_experiment_id}_{dataset}_{model_name}.pkl"
+        # Fallback to _per_sensor format
+        file_name_alt = f"{global_experiment_id}_{dataset}_{analysis_type}_{model_name}_per_sensor.pkl"
         full_path_alt = os.path.join(aggregated_dir, file_name_alt)
         if not os.path.exists(full_path_alt):
-            raise FileNotFoundError(f"Aggregated pickle not found in either format: {full_path} or {full_path_alt}")
+            raise FileNotFoundError(f"Aggregated pickle not found in either primary or _per_sensor format.")
         full_path = full_path_alt
     
     with open(full_path, "rb") as f:
@@ -507,24 +508,31 @@ def load_feature_importance_pickle(
 
 def _pivot_feature_importance_data(importance_data_dict):
     """
-    Pivot and aggregate feature importance data.
-    Input: {drug: {sensor: {feature: value}}}
-    Output: {drug: {feature: avg_value_across_sensors}}
+    Parses and aggregates feature importance data from a sensor-based structure.
+    Input: {drug_name: {sensor_name: {feature_importance_keys: values}}}
+    Returns: {drug_name: {feature_name: mean_importance_value}}
     """
     pivot = {}
-    agg_temp = {}  # {drug: {feature: [values]}}
+    pattern = re.compile(r"feature_importances\.feature-(.+)\.spaces-.+\.mean")
 
     for drug_name, sensor_data in importance_data_dict.items():
-        for sensor, feature_data in sensor_data.items():
-            for feature_name, value in feature_data.items():
-                agg_temp.setdefault(drug_name, {}).setdefault(feature_name, []).append(value)
-
-    # Average the aggregated values
-    for drug_name, feature_data in agg_temp.items():
-        for feature_name, values in feature_data.items():
-            avg_value = np.mean(values)
-            pivot.setdefault(drug_name, {})[feature_name] = avg_value
-            
+        pivot[drug_name] = {}
+        feature_values = {}  # {feature_name: [values_across_sensors]}
+        
+        # Iterate through all sensors for this drug
+        for sensor_name, feature_dict in sensor_data.items():
+            for long_key, value in feature_dict.items():
+                match = pattern.match(long_key)
+                if match:
+                    feature_name = match.group(1)
+                    if feature_name not in feature_values:
+                        feature_values[feature_name] = []
+                    feature_values[feature_name].append(value)
+        
+        # Average across all sensors for each feature
+        for feature_name, values in feature_values.items():
+            pivot[drug_name][feature_name] = np.mean(values)
+    
     return pivot
 
 
@@ -544,31 +552,7 @@ def make_feature_importance_radar_grid(
     vmin=None,
     vmax=None,
 ):
-    """Create a radar plot comparing feature importance across drugs.
- 
-    For a single ML model, this function generates a radar plot
-    where the radar's spokes are the features and each colored
-    polygon represents a different drug.
- 
-    Parameters
-    ----------
-    aggregated_dir : str
-        Path to the directory containing aggregated pickle files.
-    global_experiment_id : str
-        The base name for the experiment files.
-    drug_names : list[str]
-        A list of drug names (datasets) to compare.
-    analysis_type : str
-        The analysis type (e.g., 'baseline').
-    model_name : str
-        The machine learning model to use (e.g., 'Logistic Regression').
-    features_to_show : list[str], optional
-        A subset of features to show on the radar spokes. If None, shows all.
-    save_path : str, optional
-        Base path to save the figure. The format will be appended.
-    figsize, dpi, file_format, fill_alpha, color_cycle, vmin, vmax
-        Styling parameters for the plot.
-    """
+    """Create a radar plot comparing feature importance across drugs."""
     # 1. Load data for all requested drugs
     importance_data = {}
     for drug in drug_names:
@@ -579,84 +563,74 @@ def make_feature_importance_radar_grid(
         except FileNotFoundError as e:
             print(f"Warning: Could not load data for drug '{drug}'. Skipping. Details: {e}")
             continue
- 
+
     if not importance_data:
         print("Error: No feature importance data could be loaded. Aborting.")
         return None
- 
-    # 2. Pivot data into the required structure for plotting
+
+    # 2. Pivot data
     pivoted_data = _pivot_feature_importance_data(importance_data)
 
-    # No metric loop needed, we generate one plot
-    features = sorted(next(iter(pivoted_data.values())).keys())
+    if not pivoted_data:
+        print("Error: Pivoting data failed.")
+        return None
+
+    # 3. Determine feature categories from all available features across drugs
+    all_features = set()
+    for drug_data in pivoted_data.values():
+        all_features.update(drug_data.keys())
+    
+    features = sorted(all_features)
 
     if features_to_show:
         features = [f for f in features_to_show if f in features]
- 
+    
     if not features:
-        print("Error: No features available to plot.")
+        print("Error: No features to plot.")
         return None
- 
-    # 3. Determine global value range for consistent axes
+
+    # 4. Global value range
     if vmin is None or vmax is None:
-        all_vals = [
-            val
-            for drug_data in pivoted_data.values()
-            for val in drug_data.values()
-        ]
+        all_vals = [val for drug_data in pivoted_data.values() for val in drug_data.values()]
         if not all_vals:
-            vmin, vmax = 0, 1 # Default if no data
+            vmin, vmax = 0, 1
         else:
-            if vmin is None:
-                vmin = np.nanmin(all_vals)
-            if vmax is None:
-                vmax = np.nanmax(all_vals)
+            if vmin is None: vmin = np.nanmin(all_vals)
+            if vmax is None: vmax = np.nanmax(all_vals)
 
-    # 4. Set up figure
-    fig, ax = plt.subplots(
-        subplot_kw={"polar": True}, figsize=figsize, facecolor="white"
-    )
-
+    # 5. Set up figure
+    fig, ax = plt.subplots(subplot_kw={"polar": True}, figsize=figsize, facecolor="white")
     color_cycle = color_cycle or plt.rcParams["axes.prop_cycle"].by_key()["color"]
 
-    # Draw one polygon per drug
+    # 6. Draw each radar plot
     for i, drug_name in enumerate(drug_names):
         if drug_name not in pivoted_data:
             continue
-
+        
         values = [pivoted_data[drug_name].get(f, np.nan) for f in features]
-
+        
         _plot_radar_single(
-            ax,
-            features,
-            values,
-            vmin=vmin,
-            vmax=vmax,
-            fill_alpha=fill_alpha,
+            ax, features, values, vmin=vmin, vmax=vmax, fill_alpha=fill_alpha,
             line_kwargs={"color": color_cycle[i % len(color_cycle)], "linewidth": 2},
             fill_kwargs={"color": color_cycle[i % len(color_cycle)]},
             label=drug_name.title(),
         )
+    
+    ax.legend(loc="upper right", bbox_to_anchor=(1.35, 1.15), fontsize=9, frameon=False)
 
-    ax.legend(
-        loc="upper right", bbox_to_anchor=(1.35, 1.15), fontsize=9, frameon=False
-    )
-
-    # Finalize and save
+    # 7. Finalize and save
     fig.suptitle(
         f'Mean Feature Importance Radar: {model_name}\nAnalysis: {analysis_type.title()}',
-        fontsize=16,
-        fontweight="bold",
-        y=0.98,
+        fontsize=16, fontweight="bold", y=0.98,
     )
     fig.tight_layout(pad=3.0, h_pad=4.0, w_pad=4.0)
-    fig.subplots_adjust(top=0.85) # Adjust top to make space for suptitle
- 
+    fig.subplots_adjust(top=0.85)
+
     if save_path:
         final_save_path = f"{save_path}.{file_format}"
         print(f"Saving figure to: {final_save_path}")
         fig.savefig(final_save_path, dpi=dpi, facecolor='white', transparent=False)
- 
+
     return fig
 
 
