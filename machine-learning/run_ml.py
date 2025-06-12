@@ -171,14 +171,16 @@ def main():
     for analysis in cfg["analyses"]:
         analysis_cfg = deepcopy(defaults)
         analysis_cfg.update(analysis)
-
+        feature_names = analysis_cfg.get("feature_names", "all"),
+        feature_names = list(feature_names)
+        feature_names = [f"feature-{feat}" for feat in feature_names[0]]
         # 2) Feature selection & target extraction
         X, y, groups = select_features(
             df,
             target_columns=analysis_cfg["target_columns"],
             covariates=analysis_cfg.get("covariates"),
             spatial_units=analysis_cfg.get("spatial_units"),
-            feature_names=analysis_cfg.get("feature_names", "all"),
+            feature_names=feature_names,
             row_filter=analysis_cfg.get("row_filter"),
             sep=analysis_cfg.get("sep", "_"),
             reverse=analysis_cfg.get("reverse", False),

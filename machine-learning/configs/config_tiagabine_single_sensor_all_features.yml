@@ -3,16 +3,16 @@
 # -----------------------------------------------------------------------------
 
 # A unique identifier for this entire experiment
-global_experiment_id: "neuro_cocodelics_single_sensor_all_features_tiagabine"
+global_experiment_id: "neuro_cocodelics_v2_single_sensor_all_features_tiagabine"
 
 # Path to your input CSV/Parquet/etc: change this to the data you want to analyze 
 data_path: "/home/hamza97/neuro-cocodelics/local_data/tiagabine.csv" 
 
 # Where to write all the per-analysis and final results
-results_dir: "/home/hamza97/scratch/neuro-cocodelics/results"
+results_dir: "/home/hamza97/scratch/neuro-cocodelics/results_v2"
 
 # Base filename (without extension) for per-analysis outputs
-results_file: "neuro_cocodelics_single_sensor_all_features_tiagabine"
+results_file: "neuro_cocodelics_v2_single_sensor_all_features_tiagabine"
 
 # -----------------------------------------------------------------------------
 # Defaults: values here apply to every analysis unless overridden below
@@ -66,20 +66,7 @@ defaults:
 
   # Feature names computed for each spatial unit.
   # These must match the suffix (or prefix, if reverse=true) of each column.
-  feature_names:
-    - feature-lzivComplexityMeanEpochs
-    - feature-higuchiFdMeanEpochs
-    - feature-svdEntropyMeanEpochs
-    - feature-higuchiFdVarEpochs
-    - feature-hjorthMobilityMeanEpochs
-    - feature-hjorthComplexityMeanEpochs
-    - feature-spectralEntropyMeanEpochs
-    - feature-numZerocrossMeanEpochs
-    - feature-katzFdMeanEpochs
-    - feature-katzFdSDEpochs
-    - feature-detrendedFluctuationMeanEpochs
-    - feature-petrosianFdMeanEpochs
-
+  feature_names: ['spectralEntropySDEpochs', 'hjorthComplexityMeanEpochs', 'svdEntropySDEpochs', 'katzFdMeanEpochs', 'svdEntropyMeanEpochs', 'katzFdSDEpochs', 'petrosianFdMeanEpochs', 'lzivComplexityMeanEpochs', 'detrendedFluctuationSDEpochs', 'spectralEntropyMeanEpochs', 'numZerocrossMeanEpochs', 'higuchiFdVarEpochs', 'higuchiFdMeanEpochs', 'petrosianFdSDEpochs', 'lzivComplexitySDEpochs', 'hjorthMobilitySDEpochs', 'hjorthMobilityMeanEpochs', 'higuchiFdSDEpochs', 'detrendedFluctuationMeanEpochs', 'numZerocrossSDEpochs', 'hjorthComplexitySDEpochs']
   # ------------------------
   # Mode & slicing defaults
   # ------------------------
@@ -114,8 +101,6 @@ analyses:
     models:
       - "Logistic Regression"
       - "Random Forest"
-      - "SVC"
-      - "Gradient Boosting"
 
     # Evaluation metrics to compute
     metrics:
@@ -123,29 +108,29 @@ analyses:
       - "f1"
       - "roc_auc"
 
-  # 1) Classification Baseline with forward feature selection
-  - id: "classification_baseline"
-    task: "classification"        # "classification" or "regression"
-    mode: "multivariate"          # override default mode if desired
-    analysis_unit: "sensor"      # "all" | "sensor" | "feature"
-    analysis_type: "hp_search"  
-    target_columns: ["target"]    # name(s) of your outcome column(s)
+  # # 1) Classification Baseline with forward feature selection
+  # - id: "classification_baseline"
+  #   task: "classification"        # "classification" or "regression"
+  #   mode: "multivariate"          # override default mode if desired
+  #   analysis_unit: "sensor"      # "all" | "sensor" | "feature"
+  #   analysis_type: "hp_search"  
+  #   target_columns: ["target"]    # name(s) of your outcome column(s)
 
 
-    # Models to include (list or "all" for your predefined set)
-    models:
-      - "Logistic Regression"
-      - "Random Forest"
-      - "SVC"
-      - "Gradient Boosting"
+  #   # Models to include (list or "all" for your predefined set)
+  #   models:
+  #     - "Logistic Regression"
+  #     - "Random Forest"
+  #     - "SVC"
+  #     - "Gradient Boosting"
 
-    # Evaluation metrics to compute
-    metrics:
-      - "accuracy"
-      - "f1"
-      - "roc_auc"
+  #   # Evaluation metrics to compute
+  #   metrics:
+  #     - "accuracy"
+  #     - "f1"
+  #     - "roc_auc"
     
-    n_iter: 50
-    search_type: "random"         # "grid" or "random"
+  #   n_iter: 50
+  #   search_type: "random"         # "grid" or "random"
     
     
