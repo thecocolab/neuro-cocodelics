@@ -197,7 +197,7 @@ def main():
         'feature_importances.feature-svdEntropyMeanEpochs.spaces-{slice}.std',
     ]
 
-    for model in ["Logistic Regression", "Logistic Regression", "Gradient Boosting","SVC"]:
+    for model in [ "Random Forest", "Gradient Boosting","SVC"]:
         for dataset in ["psilocybin", "lsd-Video", "lsd-Music", "lsd-Open2", "lsd-Open1",
                         "lsd-Closed1", "lsd-Closed2", "lsd-avg",
                         "tiagabine", "perampanel"]: #ketamine
