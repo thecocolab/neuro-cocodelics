@@ -40,7 +40,7 @@ def get_channel_names(df):
     return list(set([col[-5:] for col in df.columns if ".spaces-" in col]))
 
 
-def load_data(data_dir, ignore_features=None, act_minus_pcb=True, normalize=False, rois=False):
+def load_data(data_dir, ignore_features=[], act_minus_pcb=True, normalize=False, rois=False, ignore_rois=[]):
     """
     Load and process data from CSV files.
 
@@ -57,17 +57,14 @@ def load_data(data_dir, ignore_features=None, act_minus_pcb=True, normalize=Fals
         If True, apply z-score normalization
     rois : bool, default False
         If True, return data in ROI format
+    ignore_rois : list, optional
+        List of ROIs to ignore (not used in current implementation)
 
     Returns:
     --------
     tuple
         (data_dict, feature_names, channel_names)
     """
-    assert rois == False, "ROIs are not supported in this version."
-
-    if ignore_features is None:
-        ignore_features = []
-
     ft_names, ch_names, col_names = None, None, None
     data = {}
 
@@ -80,16 +77,6 @@ def load_data(data_dir, ignore_features=None, act_minus_pcb=True, normalize=Fals
         target = df["target"]
         df = df.drop(columns="target")
 
-        if rois:
-            # Average channels based on ROI groups
-            roi_data = {}
-            for roi, sensors in ROI2SENSOR.items():
-                roi_cols = [col for col in df.columns if any(col.endswith(ch) for ch in sensors)]
-                if roi_cols:
-                    roi_data[roi] = df[roi_cols].mean(axis=1)
-            df = pd.DataFrame(roi_data, index=df.index)
-            ch_names = list(roi_data.keys())
-
         if ft_names is None:
             ft_names = get_feature_names(df)
             ch_names = get_channel_names(df)
@@ -98,6 +85,23 @@ def load_data(data_dir, ignore_features=None, act_minus_pcb=True, normalize=Fals
             assert ft_names == get_feature_names(df), "Feature names do not match across datasets."
             assert ch_names == get_channel_names(df), "Channel names do not match across datasets."
             assert col_names == df.columns.tolist(), "Column names do not match across datasets."
+
+        if rois:
+            new_df = {}
+            for roi, sensors in ROI2SENSOR.items():
+                if roi in ignore_rois:
+                    continue
+                roi_data = {}
+                for col in df.columns:
+                    for sensor in sensors:
+                        if sensor in col:
+                            feat = col.replace("feature-", "").split(".")[0]
+                            if feat not in roi_data:
+                                roi_data[feat] = []
+                            roi_data[feat].append(df[col].values)
+                for feat in roi_data:
+                    new_df[f"feature-{feat}.spaces-{roi}"] = np.mean(roi_data[feat], axis=0)
+            df = pd.DataFrame(new_df, index=df.index)
 
         # Apply normalization if requested
         if normalize:
@@ -114,6 +118,8 @@ def load_data(data_dir, ignore_features=None, act_minus_pcb=True, normalize=Fals
             if name + "-pcb" not in ignore_features:
                 data[name + "-pcb"] = df[target == 0]
 
+    if rois:
+        return data, ft_names, [roi for roi in ROI2SENSOR.keys() if roi not in ignore_rois], df.columns.tolist()
     return data, ft_names, ch_names, col_names
 
 
