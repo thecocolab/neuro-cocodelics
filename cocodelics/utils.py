@@ -368,9 +368,9 @@ def plot_spider_by_feature(tval, ft_names, ch_names, figsize=(8, 8)):
     plt.show()
 
 
-def plot_violin_by_feature(tval, ft_names, ch_names, figsize=(10, 6)):
+def plot_feature_distributions(tval, ft_names, ch_names, figsize=(10, 6), title="", kind="violin"):
     """
-    Violin plot of t-values grouped by feature, one color per condition.
+    Violin or bar plots of t-values grouped by feature, one color per condition.
 
     Parameters:
     -----------
@@ -382,6 +382,10 @@ def plot_violin_by_feature(tval, ft_names, ch_names, figsize=(10, 6)):
         List of channel names (unused here)
     figsize : tuple
         Figure size
+    title : str
+        Title for the plot
+    kind : str
+        Type of plot ("violin" or "bar")
     """
     n_features = len(ft_names)
     n_conditions = len(tval)
@@ -396,13 +400,20 @@ def plot_violin_by_feature(tval, ft_names, ch_names, figsize=(10, 6)):
         data = [np.asarray(ft_dict[ft]) for ft in ft_names]
         pos = positions + (idx - (n_conditions - 1) / 2) * width
 
-        vp = ax.violinplot(data, positions=pos, widths=width, showmeans=False, showextrema=False, showmedians=False)
-        color = COLOR_MAP.get(condition, f"C{idx}")
-        for pc in vp["bodies"]:
-            pc.set_facecolor(color)
-            pc.set_alpha(0.7)
-            pc.set_edgecolor("black")
-            pc.set_linewidth(0.8)
+        if kind == "violin":
+            vp = ax.violinplot(data, positions=pos, widths=width, showmeans=False, showextrema=False, showmedians=False)
+            color = COLOR_MAP.get(condition, f"C{idx}")
+            for pc in vp["bodies"]:
+                pc.set_facecolor(color)
+                pc.set_alpha(0.7)
+                pc.set_edgecolor("black")
+                pc.set_linewidth(0.8)
+        elif kind == "bar":
+            means = [np.mean(ft_dict[ft]) for ft in ft_names]
+            stds = [np.std(ft_dict[ft]) for ft in ft_names]
+            ax.bar(pos, means, width=width, yerr=stds, label=condition, color=COLOR_MAP.get(condition, f"C{idx}"), alpha=0.7)
+        else:
+            raise ValueError("kind must be either 'violin' or 'bar'.")
 
     # Add vertical dashed lines between features
     for i in range(1, n_features):
@@ -412,7 +423,7 @@ def plot_violin_by_feature(tval, ft_names, ch_names, figsize=(10, 6)):
     ax.set_xticks(positions)
     ax.set_xticklabels(ft_names, rotation=30, ha="right")
     ax.set_ylabel("t-value")
-    ax.set_title("t-value distribution by feature and condition", fontweight="bold")
+    ax.set_title(title, fontweight="bold")
 
     # Create legend manually
     from matplotlib.patches import Patch
