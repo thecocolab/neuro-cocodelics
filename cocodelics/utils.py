@@ -68,7 +68,19 @@ def load_data(data_dir, ignore_features=[], act_minus_pcb=True, normalize=False,
     ft_names, ch_names, col_names = None, None, None
     data = {}
 
-    for path in sorted(glob(data_dir + "/*.csv")):
+    paths = glob(data_dir + "/*.csv")
+
+    # Sort paths by DATASET_ORDER
+    def dataset_key(path):
+        name = Path(path).stem
+        try:
+            return DATASET_ORDER.index(name)
+        except ValueError:
+            return len(DATASET_ORDER)  # put unknowns at the end
+
+    paths = sorted(paths, key=dataset_key)
+
+    for path in paths:
         name = path.split("/")[-1].split(".")[0]
         if name.startswith("aggregate"):
             continue
@@ -123,7 +135,7 @@ def load_data(data_dir, ignore_features=[], act_minus_pcb=True, normalize=False,
     return data, ft_names, ch_names, col_names
 
 
-def get_data(df, ft_name, ch_names, avg_subjs=False, avg_chs=False):
+def get_feature_data(df, ft_name, ch_names, avg_subjs=False, avg_chs=False):
     """
     Extract data for a specific feature.
 
@@ -356,10 +368,6 @@ def plot_spider_by_feature(tval, ft_names, ch_names, figsize=(8, 8)):
     plt.show()
 
 
-import matplotlib.pyplot as plt
-import numpy as np
-
-
 def plot_violin_by_feature(tval, ft_names, ch_names, figsize=(10, 6)):
     """
     Violin plot of t-values grouped by feature, one color per condition.
@@ -396,6 +404,10 @@ def plot_violin_by_feature(tval, ft_names, ch_names, figsize=(10, 6)):
             pc.set_edgecolor("black")
             pc.set_linewidth(0.8)
 
+    # Add vertical dashed lines between features
+    for i in range(1, n_features):
+        ax.axvline(i - 0.5, color="gray", linestyle="--", linewidth=1, zorder=0)
+
     ax.axhline(0, color="k", linewidth=1.5, linestyle="--", zorder=0)
     ax.set_xticks(positions)
     ax.set_xticklabels(ft_names, rotation=30, ha="right")
@@ -406,7 +418,7 @@ def plot_violin_by_feature(tval, ft_names, ch_names, figsize=(10, 6)):
     from matplotlib.patches import Patch
 
     legend_handles = [Patch(color=COLOR_MAP.get(cond, f"C{i}"), label=cond) for i, cond in enumerate(tval.keys())]
-    ax.legend(handles=legend_handles, bbox_to_anchor=(1.01, 1), loc="upper left")
+    plt.legend(handles=legend_handles)
 
     plt.tight_layout()
     plt.show()
@@ -438,4 +450,29 @@ FEATURE_ORDER = [
     "numZerocross",
     "Spectral Entropy",
     "Svd Entropy",
+]
+
+DATASET_ORDER = [
+    "lsd-Closed1",
+    "lsd-Closed1-pcb",
+    "lsd-Closed2",
+    "lsd-Closed2-pcb",
+    "lsd-Music",
+    "lsd-Music-pcb",
+    "lsd-Open1",
+    "lsd-Open1-pcb",
+    "lsd-Open2",
+    "lsd-Open2-pcb",
+    "lsd-Video",
+    "lsd-Video-pcb",
+    "lsd-avg",
+    "lsd-avg-pcb",
+    "psilocybin",
+    "psilocybin-pcb",
+    "ketamine",
+    "ketamine-pcb",
+    "perampanel",
+    "perampanel-pcb",
+    "tiagabine",
+    "tiagabine-pcb",
 ]
