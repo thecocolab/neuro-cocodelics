@@ -154,6 +154,16 @@ def save_object(obj: Any, file_path: str) -> None:
         pickle.dump(obj, f)
 
 
+def load_aggregated_pickle(aggregated_dir: str, global_experiment_id: str, dataset: str, analysis_type: str, model_name: str):
+    """Load aggregated performance metrics pickle produced by `aggregate_model_results`."""
+    filename = f"{global_experiment_id}_{dataset}_{analysis_type}_{model_name}_perf_metrics.pkl"
+    file_path = Path(aggregated_dir) / filename
+    if not file_path.exists():
+        raise FileNotFoundError(f"Aggregated results file not found: {file_path}")
+    with file_path.open("rb") as f:
+        return pickle.load(f)
+
+
 def main():
     # Example usage
     RESULTS_DIR = "/home/hamza97/scratch/neuro-cocodelics/results"
