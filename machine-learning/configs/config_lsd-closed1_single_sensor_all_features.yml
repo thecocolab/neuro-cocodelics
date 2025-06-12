@@ -6,10 +6,10 @@
 global_experiment_id: "neuro_cocodelics_single_sensor_all_features_lsd-Closed1"
 
 # Path to your input CSV/Parquet/etc: change this to the data you want to analyze
-data_path: "./local_data/lsd-Closed1.csv"
+data_path: "/home/hamza97/neuro-cocodelics/local_data/lsd-Closed1.csv"
 
 # Where to write all the per-analysis and final results
-results_dir: "./results"
+results_dir: "/home/hamza97/scratch/neuro-cocodelics/results"
 
 # Base filename (without extension) for per-analysis outputs
 results_file: "neuro_cocodelics_single_sensor_all_features_lsd-Closed1"
@@ -37,7 +37,7 @@ defaults:
   # Cross-validation settings
   # ------------------------
   cv_kwargs:
-    cv_strategy: "leave-one-out"    # e.g. group-stratified K-Fold, or leave-one-out
+    cv_strategy: "leave_one_out"    # e.g. group-stratified K-Fold, or leave-one-out
     shuffle: true                 # shuffle before splitting
     random_state: 42
 
