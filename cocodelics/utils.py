@@ -15,17 +15,17 @@ INFO.rename_channels(lambda x: x.replace("-3305", ""))
 
 # ROI mappings
 ROI2SENSOR = {
-    "Frontal_Left": [ch for ch in INFO.ch_names if ch.startswith("MLF")],
-    "Frontal_Right": [ch for ch in INFO.ch_names if ch.startswith("MRF")],
-    "Central_Left": [ch for ch in INFO.ch_names if ch.startswith("MLC")],
-    "Central_Right": [ch for ch in INFO.ch_names if ch.startswith("MRC")],
-    "Parietal_Left": [ch for ch in INFO.ch_names if ch.startswith("MLP")],
-    "Parietal_Right": [ch for ch in INFO.ch_names if ch.startswith("MRP")],
-    "Temporal_Left": [ch for ch in INFO.ch_names if ch.startswith("MLT")],
-    "Temporal_Right": [ch for ch in INFO.ch_names if ch.startswith("MRT")],
-    "Occipital_Left": [ch for ch in INFO.ch_names if ch.startswith("MLO")],
-    "Occipital_Right": [ch for ch in INFO.ch_names if ch.startswith("MRO")],
-    "Midline": [ch for ch in INFO.ch_names if ch.startswith("MZ")],
+    "ROI_Frontal_Left": [ch for ch in INFO.ch_names if ch.startswith("MLF")],
+    "ROI_Frontal_Right": [ch for ch in INFO.ch_names if ch.startswith("MRF")],
+    "ROI_Central_Left": [ch for ch in INFO.ch_names if ch.startswith("MLC")],
+    "ROI_Central_Right": [ch for ch in INFO.ch_names if ch.startswith("MRC")],
+    "ROI_Parietal_Left": [ch for ch in INFO.ch_names if ch.startswith("MLP")],
+    "ROI_Parietal_Right": [ch for ch in INFO.ch_names if ch.startswith("MRP")],
+    "ROI_Temporal_Left": [ch for ch in INFO.ch_names if ch.startswith("MLT")],
+    "ROI_Temporal_Right": [ch for ch in INFO.ch_names if ch.startswith("MRT")],
+    "ROI_Occipital_Left": [ch for ch in INFO.ch_names if ch.startswith("MLO")],
+    "ROI_Occipital_Right": [ch for ch in INFO.ch_names if ch.startswith("MRO")],
+    "ROI_Midline": [ch for ch in INFO.ch_names if ch.startswith("MZ")],
 }
 SENSOR2ROI = {ch: roi for roi, sensors in ROI2SENSOR.items() for ch in sensors}
 
@@ -40,7 +40,7 @@ def get_channel_names(df):
     return list(set([col[-5:] for col in df.columns if ".spaces-" in col]))
 
 
-def load_data(data_dir, ignore_features=None, act_minus_pcb=True, normalize=False):
+def load_data(data_dir, ignore_features=None, act_minus_pcb=True, normalize=False, rois=False):
     """
     Load and process data from CSV files.
 
@@ -55,16 +55,20 @@ def load_data(data_dir, ignore_features=None, act_minus_pcb=True, normalize=Fals
         If False, keep active and placebo separate
     normalize : bool, default True
         If True, apply z-score normalization
+    rois : bool, default False
+        If True, return data in ROI format
 
     Returns:
     --------
     tuple
         (data_dict, feature_names, channel_names)
     """
+    assert rois == False, "ROIs are not supported in this version."
+
     if ignore_features is None:
         ignore_features = []
 
-    ft_names, ch_names = None, None
+    ft_names, ch_names, col_names = None, None, None
     data = {}
 
     for path in sorted(glob(data_dir + "/*.csv")):
@@ -73,16 +77,27 @@ def load_data(data_dir, ignore_features=None, act_minus_pcb=True, normalize=Fals
             continue
 
         df = pd.read_csv(path, index_col=0)
+        target = df["target"]
+        df = df.drop(columns="target")
+
+        if rois:
+            # Average channels based on ROI groups
+            roi_data = {}
+            for roi, sensors in ROI2SENSOR.items():
+                roi_cols = [col for col in df.columns if any(col.endswith(ch) for ch in sensors)]
+                if roi_cols:
+                    roi_data[roi] = df[roi_cols].mean(axis=1)
+            df = pd.DataFrame(roi_data, index=df.index)
+            ch_names = list(roi_data.keys())
 
         if ft_names is None:
             ft_names = get_feature_names(df)
             ch_names = get_channel_names(df)
+            col_names = df.columns.tolist()
         else:
             assert ft_names == get_feature_names(df), "Feature names do not match across datasets."
             assert ch_names == get_channel_names(df), "Channel names do not match across datasets."
-
-        target = df["target"]
-        df = df.drop(columns="target")
+            assert col_names == df.columns.tolist(), "Column names do not match across datasets."
 
         # Apply normalization if requested
         if normalize:
@@ -99,7 +114,7 @@ def load_data(data_dir, ignore_features=None, act_minus_pcb=True, normalize=Fals
             if name + "-pcb" not in ignore_features:
                 data[name + "-pcb"] = df[target == 0]
 
-    return data, ft_names, ch_names
+    return data, ft_names, ch_names, col_names
 
 
 def get_data(df, ft_name, ch_names, avg_subjs=False, avg_chs=False):
@@ -200,7 +215,7 @@ def ttest_across_subjects(data, ft_names, ch_names):
     return t_values, p_values
 
 
-def plot_topomaps_by_feature(tval, pval, ft_names, ch_names, axes=None, figsize=(15, 10), p_thresh=0.05):
+def plot_topomaps_by_feature(tval, pval, ft_names, ch_names, axes=None, figsize=(15, 10), p_thresh=0.05, vlim=5):
     """
     Plot topomaps for each feature across all conditions using all channels.
     Significant (FDR-corrected) channels are masked.
@@ -221,6 +236,8 @@ def plot_topomaps_by_feature(tval, pval, ft_names, ch_names, axes=None, figsize=
         Figure size
     p_thresh : float, default 0.05
         Significance threshold for p-values (after FDR correction)
+    vlim : float, default 5
+        Value limit for color scale in topomap plots
     """
     n_features = len(ft_names)
     n_conditions = len(tval)
@@ -265,8 +282,9 @@ def plot_topomaps_by_feature(tval, pval, ft_names, ch_names, axes=None, figsize=
                 sensors=True,
                 names=None,
                 mask=mask,
-                # mask_params=dict(marker="*"),
                 contours=False,
+                sphere=(0, 0, -0.11, 0.1),
+                vlim=(-vlim, vlim),
             )
 
             # Set title
@@ -278,7 +296,7 @@ def plot_topomaps_by_feature(tval, pval, ft_names, ch_names, axes=None, figsize=
                     0.5,
                     ft_name,
                     rotation=0,
-                    ha="center",
+                    ha="right",
                     va="center",
                     transform=ax.transAxes,
                     fontsize=12,
@@ -289,17 +307,129 @@ def plot_topomaps_by_feature(tval, pval, ft_names, ch_names, axes=None, figsize=
     plt.show()
 
 
+def plot_spider_by_feature(tval, ft_names, ch_names, figsize=(8, 8)):
+    """
+    Plot a spider (radar) plot for each condition.
+    Each branch is a feature, each color is a condition.
+    The value is the average t-value across sensors for that feature and condition.
+
+    Parameters:
+    -----------
+    tval : dict
+        Dictionary with condition names as keys and t-values as values
+    ft_names : list
+        List of feature names
+    ch_names : list
+        List of channel names
+    figsize : tuple, default (8, 8)
+        Figure size
+    vlim : float, default 5
+        Value limit for radial axis
+    """
+    n_features = len(ft_names)
+    angles = np.linspace(0, 2 * np.pi, n_features, endpoint=False).tolist()
+    angles += angles[:1]  # close the loop
+
+    plt.figure(figsize=figsize)
+    ax = plt.subplot(111, polar=True)
+
+    # Add bold contour at 0
+    ax.plot(angles, [0] * len(angles), color="black", linestyle="-", linewidth=5, zorder=0)
+
+    for condition, ft_dict in tval.items():
+        values = [np.mean(ft_dict[ft]) for ft in ft_names]
+        values += values[:1]  # close the loop
+        color = COLOR_MAP.get(condition, None)
+        ax.plot(angles, values, label=condition, color=color, linewidth=2)
+
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(ft_names, fontsize=12)
+    ax.set_title("Average t-values across sensors (by feature)", fontsize=14, fontweight="bold", pad=20)
+    ax.legend(loc="upper right", bbox_to_anchor=(1.2, 1.1))
+    plt.tight_layout()
+    plt.show()
+
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+
+def plot_violin_by_feature(tval, ft_names, ch_names, figsize=(10, 6)):
+    """
+    Violin plot of t-values grouped by feature, one color per condition.
+
+    Parameters:
+    -----------
+    tval : dict
+        {condition: {feature: tval_array (channels,)}}
+    ft_names : list
+        List of feature names
+    ch_names : list
+        List of channel names (unused here)
+    figsize : tuple
+        Figure size
+    """
+    n_features = len(ft_names)
+    n_conditions = len(tval)
+
+    plt.figure(figsize=figsize)
+    ax = plt.gca()
+
+    width = 0.8 / n_conditions  # violin width
+    positions = np.arange(n_features)
+
+    for idx, (condition, ft_dict) in enumerate(tval.items()):
+        data = [np.asarray(ft_dict[ft]) for ft in ft_names]
+        pos = positions + (idx - (n_conditions - 1) / 2) * width
+
+        vp = ax.violinplot(data, positions=pos, widths=width, showmeans=False, showextrema=False, showmedians=False)
+        color = COLOR_MAP.get(condition, f"C{idx}")
+        for pc in vp["bodies"]:
+            pc.set_facecolor(color)
+            pc.set_alpha(0.7)
+            pc.set_edgecolor("black")
+            pc.set_linewidth(0.8)
+
+    ax.axhline(0, color="k", linewidth=1.5, linestyle="--", zorder=0)
+    ax.set_xticks(positions)
+    ax.set_xticklabels(ft_names, rotation=30, ha="right")
+    ax.set_ylabel("t-value")
+    ax.set_title("t-value distribution by feature and condition", fontweight="bold")
+
+    # Create legend manually
+    from matplotlib.patches import Patch
+
+    legend_handles = [Patch(color=COLOR_MAP.get(cond, f"C{i}"), label=cond) for i, cond in enumerate(tval.keys())]
+    ax.legend(handles=legend_handles, bbox_to_anchor=(1.01, 1), loc="upper left")
+
+    plt.tight_layout()
+    plt.show()
+
+
 # Color map for different conditions
 COLOR_MAP = {
-    "lsd-Closed1": "#c6b4e3",
-    "lsd-Closed2": "#b19bdc",
-    "lsd-Music": "#9b83d5",
-    "lsd-Open2": "#856bcc",
-    "lsd-Open1": "#6f54c3",
-    "lsd-Video": "#593ebb",
-    "lsd-avg": "#4327b2",
-    "ketamine": "#1dbc7c",
-    "psilocybin": "#bf00ee",
-    "perampanel": "#bfa900",
-    "tiagabine": "#e61a1a",
+    "lsd-Closed1": "#8B0000",  # dark red
+    "lsd-Closed2": "#B22222",  # firebrick
+    "lsd-Music": "#FF4500",  # orange red
+    "lsd-Open2": "#FF8C00",  # dark orange
+    "lsd-Open1": "#EB0000",  # gold/yellow
+    "lsd-Video": "#FFA500",  # orange
+    "lsd-avg": "#FFB300",  # yellow-orange
+    "ketamine": "#FFD700",  # yellow
+    "psilocybin": "#FF8C00",  # dark orange
+    "perampanel": "#2979ff",  # blue
+    "tiagabine": "#43a047",  # green
 }
+
+FEATURE_ORDER = [
+    "Detrended Fluctuation",
+    "Higuchi Fd",
+    "Petrosian Fd",
+    "Katz Fd",
+    "Hjorth Complexity",
+    "Hjorth Mobility",
+    "Lziv Complexity",
+    "numZerocross",
+    "Spectral Entropy",
+    "Svd Entropy",
+]
