@@ -1,0 +1,8 @@
+pandas
+numpy
+scipy>=1.0
+scikit-learn
+matplotlib
+pybids
+pyyaml
+toposort

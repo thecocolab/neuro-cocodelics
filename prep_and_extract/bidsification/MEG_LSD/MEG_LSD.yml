@@ -1,0 +1,55 @@
+entities:
+    task : resting
+    session : ses1
+
+dataset_description :
+    Name : MEG.LSD
+    Authors :
+      - Robin L. Carhart-Harrisand
+      - Suresh Muthukumaraswamyand
+      - Leor Rosemanand
+      - Mendel Kaelenand
+      - Wouter Droogand
+      - Kevin Murphyand
+      - Enzo Tagliazucchiand
+      - Eduardo E. Schenbergand
+      - Timothy Nestand
+      - Csaba Orbanand
+      - Robert Leechand
+      - Luke T. Williamsand
+      - Tim M. Williamsand
+      - Mark Bolstridgeand
+      - Ben Sessaand
+      - John McGonigleand
+      - Martin I. Serenoand
+      - David Nicholsand
+      - Peter J. Hellyerand
+      - Peter Hobdenand
+      - John Evansand
+      - Krish D. Singhand
+      - Richard G. Wiseand
+      - H. Valerie Curranand
+      - Amanda Feildingand
+      - David J. Nutt
+
+sidecar :
+    PowerLineFrequency : 50
+
+channels :
+    name :
+        heo : HEO
+        veo : VEO
+    type :
+        HEO : HEOG
+        VEO : VEOG
+
+non-bids:
+    eeg_extension : .ds
+    path_analysis:
+        pattern : /home/yorguin/scratch/data/MEG_LSD/meg_data/%a%-%b%_LSD_20140501_%entities.task%.ds
+                # /home/yorguin/scratch/data/MEG_LSD/meg_data/010514-1_LSD_20140501_Open2.ds
+        #_data/%dataset_description.Name%/ses-%entities.session%/%entities.task%/sub-%entities.subject%.vhdr
+        operation:
+          entitities.subject = "[a] + [b]"
+    code_execution:
+        - print(raw.info)
