@@ -179,7 +179,7 @@ df_bids['session_bids'] = df_bids['session'].apply(lambda x: 'placebo' if x == '
 # Most of them have 2 events, or 0.
 # Will convert as is, to a raw file
 
-BIDS_ROOT = os.path.join(OUTPUT_PATH, 'meg_data_BIDS')
+BIDS_ROOT = '/home/yorguin/scratch/datasets/cocodelics/MEG_tiagabine'
 os.makedirs(BIDS_ROOT, exist_ok=True)
 errors = []
 for i, row in df_bids.iterrows():
