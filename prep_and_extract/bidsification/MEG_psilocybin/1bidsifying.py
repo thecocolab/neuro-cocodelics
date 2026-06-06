@@ -223,7 +223,6 @@ for i, row in df_bids.iterrows():
         filepath = row['filepath']
         bids_path = BIDSPath(subject=subject, session=session, task=task, root=BIDS_ROOT)
         write_raw_bids(raw, bids_path=bids_path, overwrite=True, format="FIF", allow_preload=True)
-        break
     except Exception as e:
         print(f"Error processing {i+1}/{len(df)}: {row['filepath']}")
         print(f"Error: {str(e)}")
