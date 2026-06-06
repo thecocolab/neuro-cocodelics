@@ -28,7 +28,7 @@ def extract_tar_file(tar_path, extract_to):
 
 # go to https://www.dropbox.com/scl/fo/wqxnbthlftupwe5xxgvq1/AFKlvHwmRbuhVqPMiowAMgQ?dl=0&e=2&rlkey=4sokuurl0xbcl4fhdnm5okvxl&st=00zo9bqp
 # and save the HTML file to your local machine as a complete webpage HTML file
-html_file = "/home/yorguin/projects/def-kjerbi/yorguin/datasets/MEG_LSD/352.html"
+html_file = os.path.join(os.path.dirname(__file__), '352.html')
 
 
 import re
@@ -60,8 +60,8 @@ matches = [x.replace('https://www.dropbox.com/', 'https://www.dl.dropboxusercont
 
 to_download = [x for x in matches if True] # you could add a condition here if needed
 get_filename = lambda x: os.path.basename(x.split('?rlkey')[0])
-extract_dir = '/home/yorguin/scratch/data/MEG_LSDV2/meg_data'
-temp_file =    '/home/yorguin/scratch/data/MEG_LSDV2/meg_data/test.tar.gz'  # Local file name for downloaded file
+extract_dir = '/home/yorguin/projects/def-kjerbi/data/MEG_LSD/meg_data'
+temp_file =    '/home/yorguin/scratch/data/MEG_LSD/temp.tar.gz'  # Local file name for downloaded file
 # avoid using get_filename to set the download file in the loop if you are not interested in having the original tar.gz files
 
 for i,dropbox_url in enumerate(to_download):
@@ -88,7 +88,7 @@ for i,dropbox_url in enumerate(to_download):
 # (go there and download the zipped file), you should be able to get the dynamic link to download the zipped file
 extra_url = 'https://uc3f9b10e2ea75e1db43342b0fab.dl.dropboxusercontent.com/zip_download_get/COAe5G6XDBYOd5r4vI0uOVGsOZ24a0cXWcjrMN-AVCPf1isKYWosjHPRHEuvVfTQ-1eo6J4C6csTaVnJBGP_q2wxG4Mtos3eXlNlssBzjXDGoQ?_download_id=621419945908794253496346351361550147085283638742638439996629616964&_log_download_success=1&_notify_domain=www.dropbox.com&dl=1'
 
-temp_file = '/home/yorguin/scratch/data/MEG_LSDV2/meg_data/test.zip'
+temp_file = '/home/yorguin/scratch/data/MEG_LSD/temp.zip'
 download_file(extra_url, temp_file)
 
 import subprocess

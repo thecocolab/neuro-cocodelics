@@ -9,11 +9,12 @@ pd.set_option('display.max_rows', None)
 pd.set_option('display.max_columns', None)
 pd.set_option('display.width', 1000)  # Adjust width as needed
 
-csv = '/home/yorguin/projects/def-kjerbi/yorguin/datasets/MEG_LSD/meg_bids.csv'
+csv = os.path.join(os.path.dirname(__file__), 'meg_bids.csv')
 
 df = pd.read_csv(csv)
 
-BIDS_ROOT = '/home/yorguin/scratch/data/MEG_LSDV2/meg_data_BIDS'
+OUTPUT_PATH = '/home/yorguin/scratch/data/MEG_LSD/'
+BIDS_ROOT = os.path.join(OUTPUT_PATH, 'meg_data_BIDS')
 os.makedirs(BIDS_ROOT, exist_ok=True)
 
 errors = []

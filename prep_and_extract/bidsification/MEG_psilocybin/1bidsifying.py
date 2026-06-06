@@ -20,12 +20,13 @@ pd.set_option('display.width', 1000)  # Adjust width as needed
 
 
 datasets = {
-#    'MEG_ketamine': '/home/yorguin/scratch/data/MEG_ketamine/',
-#    'MEG_perampanel': '/home/yorguin/scratch/data/MEG_perampanel/',
-    'MEG_psilocybin':'/home/yorguin/scratch/data/MEG_psilocybin/',
-#    'MEG_tiagabine': '/home/yorguin/scratch/data/MEG_tiagabine/',
+#    'MEG_ketamine': '/home/yorguin/projects/def-kjerbi/data/MEG_ketamine/',
+#    'MEG_perampanel': '/home/yorguin/projects/def-kjerbi/data/MEG_perampanel/',
+    'MEG_psilocybin':'/home/yorguin/projects/def-kjerbi/data/MEG_psilocybin/',
+#    'MEG_tiagabine': '/home/yorguin/projects/def-kjerbi/data/MEG_tiagabine/',
 }
 
+OUTPUT_PATH = '/home/yorguin/scratch/data/MEG_psilocybin/'
 
 def loadmat(x,kwargs={}):
     print(f"Loading {x} with scipy.io.loadmat")
@@ -87,8 +88,8 @@ def inspect_meg_data(mats, file='meg_data.txt'):
     return metadatas
 
 
-filepath = os.path.join(os.path.dirname(datasets['MEG_psilocybin']), 'MEG_psilocybin_metadata.csv')
-filepath_pkl = os.path.join(os.path.dirname(datasets['MEG_psilocybin']), 'MEG_psilocybin_metadata.pkl')
+filepath = os.path.join(OUTPUT_PATH, 'MEG_psilocybin_metadata.csv')
+filepath_pkl = os.path.join(OUTPUT_PATH, 'MEG_psilocybin_metadata.pkl')
 
 if not os.path.exists(filepath):
     print(f"File {filepath} does not exist, inspecting datasets...")
@@ -105,7 +106,7 @@ if not os.path.exists(filepath):
             mats = mats[:FILES_PER_DATASET]  if len(mats) > FILES_PER_DATASET else mats
 
         metadatas_dict[dataset_name] = []
-        filepath = os.path.join(root, f'{dataset_name}_meg_data.txt')
+        filepath = os.path.join(OUTPUT_PATH, f'{dataset_name}_meg_data.txt')
         metadatas = inspect_meg_data(mats, file=filepath)
         metadatas_dict[dataset_name] = metadatas
         print(f"Inspection results saved to {dataset_name}_meg_data.txt")
@@ -151,7 +152,7 @@ for i, row in errors.iterrows():
 
 
 # '/home/yorguin/scratch/data/MEG_psilocybin/meg_data/PMP_PMP_020414_50.mat'
-pattern = r'/home/yorguin/scratch/data/MEG_psilocybin/meg_data/%ignore%/%session%_%subject%_%number%.mat'
+pattern = r'/home/yorguin/projects/def-kjerbi/data/MEG_psilocybin/meg_data/%ignore%/%session%_%subject%_%number%.mat'
 
 bids_items = []
 for i, row in df.iterrows():
@@ -178,7 +179,7 @@ df_bids['session_bids'] = df_bids['session'].apply(lambda x: 'placebo' if x == '
 # Most of them have 2 events, or 0.
 # Will convert as is, to a raw file
 
-BIDS_ROOT = '/home/yorguin/scratch/data/MEG_psilocybin/meg_data_BIDS'
+BIDS_ROOT = os.path.join(OUTPUT_PATH, 'meg_data_BIDS')
 os.makedirs(BIDS_ROOT, exist_ok=True)
 errors = []
 for i, row in df_bids.iterrows():
