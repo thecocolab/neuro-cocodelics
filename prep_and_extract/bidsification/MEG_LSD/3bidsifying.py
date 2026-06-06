@@ -26,9 +26,12 @@ for i, row in df.iterrows():
     filepath = row['file']
 
     try:
-        mne_data = mne.io.read_raw(filepath, preload=True)
-        bids_path = BIDSPath(subject=subject, session=session, task=task, root=BIDS_ROOT)
-        write_raw_bids(mne_data, bids_path=bids_path, overwrite=True, format="FIF", allow_preload=True)
+        bids_path = BIDSPath(subject=subject, session=session, task=task, root=BIDS_ROOT, datatype='meg', suffix='meg', extension='.fif')
+        if not os.path.isfile(bids_path.fpath):
+            mne_data = mne.io.read_raw(filepath, preload=True)
+            write_raw_bids(mne_data, bids_path=bids_path, overwrite=True, format="FIF", allow_preload=True)
+        else:
+            print(f"File {bids_path.fpath} already exists, skipping.")
         print(f"Processed {i+1}/{len(df)}: {subject}, {session}, {task}, {filepath}")
     except Exception as e:
         print(f"Error processing {i+1}/{len(df)}: {subject}, {session}, {task}, {filepath}")

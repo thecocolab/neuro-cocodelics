@@ -215,14 +215,37 @@ for i, row in df_bids.iterrows():
             )
         )
 
+        # Crop to post-infusion rest window (InfusionStop → RestStop)
+        infusion_stop = None
+        rest_stop = None
+        rest_start = None
+        for e in metadata['event']:
+            if e['type'] == 'InfusionStart':
+                rest_start = e['sample']
+            if e['type'] == 'InfusionStop':
+                infusion_stop = e['sample']
+            elif e['type'] == 'RestStop':
+                rest_stop = e['sample']
+            if infusion_stop is not None and rest_stop is not None:
+                break
+        if infusion_stop is None or rest_stop is None:
+            raise ValueError("InfusionStop or RestStop event not found in metadata.")
+        infusion_sec = raw.times[infusion_stop - rest_start]
+        rest_sec = raw.times[rest_stop - rest_start]
+        print(f"Cropping: InfusionStop={infusion_sec:.2f}s, RestStop={rest_sec:.2f}s, delta={rest_sec - infusion_sec:.2f}s")
+        raw = raw.crop(tmin=infusion_sec, tmax=rest_sec, include_tmax=True)
+
         raw.set_channel_types(ch_type_dict)
 
         subject = row['label']
         session = row['session_bids']
         task = 'resting'
         filepath = row['filepath']
-        bids_path = BIDSPath(subject=subject, session=session, task=task, root=BIDS_ROOT)
-        write_raw_bids(raw, bids_path=bids_path, overwrite=True, format="FIF", allow_preload=True)
+        bids_path = BIDSPath(subject=subject, session=session, task=task, root=BIDS_ROOT, datatype='meg', suffix='meg', extension='.fif')
+        if not os.path.isfile(bids_path.fpath):
+            write_raw_bids(raw, bids_path=bids_path, overwrite=True, format="FIF", allow_preload=True)
+        else:
+            print(f"File {bids_path.fpath} already exists, skipping.")
     except Exception as e:
         print(f"Error processing {i+1}/{len(df)}: {row['filepath']}")
         print(f"Error: {str(e)}")
