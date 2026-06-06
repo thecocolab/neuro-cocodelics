@@ -15,5 +15,5 @@ line-length = 128
 [project]
 dynamic = ["dependencies"]
 name = "cocodelics"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 version = "0.0.1"

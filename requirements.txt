@@ -1,2 +1,2 @@
 numpy>=1.21.0
-cocopipe @ git+https://github.com/BabaSanfour/coco-pipe.git#egg=cocopipe
+coco-pipe @ git+https://github.com/BabaSanfour/coco-pipe.git@enhancement/metadata-routed-scalers
