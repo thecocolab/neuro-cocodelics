@@ -1,6 +1,14 @@
 # Bidsification Comparison: `bidsification/` vs `r2c_project/redefinitions_cocosprint.py`
 
-Last updated: 2026-06-06 — improvements from r2c migrated back to standalone scripts.
+Last updated: 2026-06-06 — improvements from r2c migrated to standalone; BIDS output paths updated.
+
+---
+
+## Terminology
+
+**"FieldTrip scripts"** = the 4 standalone scripts handling FieldTrip `.mat` source data:
+`MEG_perampanel/1bidsifying.py`, `MEG_psilocybin/1bidsifying.py`, `MEG_ketamine/1bidsifying.py`, `MEG_tiagabine/1bidsifying.py`.
+Named after their r2c counterpart `fieldtrip_to_bids()`. Contrast with LSD which uses CTF `.ds` files.
 
 ---
 
@@ -15,6 +23,33 @@ Last updated: 2026-06-06 — improvements from r2c migrated back to standalone s
 
 ---
 
+## Output paths
+
+### BIDS roots (where `sub-*/` live)
+
+| Dataset | Standalone | r2c |
+|---------|-----------|-----|
+| LSD | `/home/yorguin/scratch/datasets/cocodelics/MEG_LSD` | from `bids_path` arg (pipeline config) |
+| perampanel | `/home/yorguin/scratch/datasets/cocodelics/MEG_perampanel` | from `bids_path` arg |
+| psilocybin | `/home/yorguin/scratch/datasets/cocodelics/MEG_psilocybin` | from `bids_path` arg |
+| ketamine | `/home/yorguin/scratch/datasets/cocodelics/MEG_ketamine` | not handled in r2c |
+| tiagabine | `/home/yorguin/scratch/datasets/cocodelics/MEG_tiagabine` | not handled in r2c |
+
+### Metadata inspection files (FieldTrip scripts only — CSV/pkl from `.mat` inspection)
+
+These are NOT BIDS output. The FieldTrip scripts keep a separate `OUTPUT_PATH` for metadata:
+
+| Dataset | Metadata OUTPUT_PATH |
+|---------|---------------------|
+| perampanel | `/home/yorguin/scratch/data/MEG_perampanel/` |
+| psilocybin | `/home/yorguin/scratch/data/MEG_psilocybin/` |
+| ketamine | `/home/yorguin/scratch/data/MEG_ketamine/` |
+| tiagabine | `/home/yorguin/scratch/data/MEG_tiagabine/` |
+
+These paths have **not** been updated to the new root — metadata stays in old scratch location.
+
+---
+
 ## Current parity status
 
 | Feature | Standalone | r2c |
@@ -25,7 +60,7 @@ Last updated: 2026-06-06 — improvements from r2c migrated back to standalone s
 | Jordan correction logic (LSD) | ✓ | ✓ |
 | Config-driven paths | — (intentional) | ✓ |
 | Ketamine/tiagabine support | ✓ | — (gap remains) |
-| `breakpoint()` regression | — | ✓ line 835 (unfixed) |
+| `breakpoint()` regression | — | ✓ line 835 (unfixed in r2c) |
 
 ---
 
@@ -41,7 +76,7 @@ Last updated: 2026-06-06 — improvements from r2c migrated back to standalone s
 | Output | Saves `meg_bids.csv` to script dir | Returns DataFrame in memory |
 | Jordan correction logic | **Identical** | **Identical** |
 
-No changes needed here — no BIDS writing in this script.
+No BIDS writing here — no path changes needed.
 
 ---
 
@@ -52,12 +87,12 @@ No changes needed here — no BIDS writing in this script.
 | Aspect | Standalone | r2c |
 |--------|-----------|-----|
 | Input | Reads `meg_bids.csv` from disk | Receives DataFrame in memory |
-| OUTPUT_PATH | Hardcoded: `/home/yorguin/scratch/data/MEG_LSD/` | From `bids_path` argument |
+| BIDS_ROOT | `/home/yorguin/scratch/datasets/cocodelics/MEG_LSD` | From `bids_path` argument |
 | Existence check | ✓ skips if file exists | ✓ skips if file exists |
-| `BIDSPath` args | `BIDSPath(..., datatype='meg', suffix='meg', extension='.fif')` | `BIDSPath(..., datatype='meg', suffix='meg', extension='.fif')` |
-| Read method | `mne.io.read_raw(filepath, preload=True)` | `mne.io.read_raw(filepath, preload=True)` |
+| `BIDSPath` args | `BIDSPath(..., datatype='meg', suffix='meg', extension='.fif')` | same |
+| Read method | `mne.io.read_raw(filepath, preload=True)` | same |
 
-**Now identical in behavior.**
+**Functionally identical.**
 
 ---
 
@@ -67,24 +102,27 @@ No changes needed here — no BIDS writing in this script.
 
 | Aspect | Standalone | r2c |
 |--------|-----------|-----|
-| Existence check | ✓ | ✓ (perampanel only) |
+| BIDS_ROOT | `/home/yorguin/scratch/datasets/cocodelics/MEG_<dataset>` | from `bids_path` arg (perampanel only) |
+| Metadata OUTPUT_PATH | `/home/yorguin/scratch/data/MEG_<dataset>/` | from `source_path` arg |
+| Existence check | ✓ | ✓ |
 | `BIDSPath` args | `BIDSPath(..., datatype='meg', suffix='meg', extension='.fif')` | same |
-| Perampanel pattern | `PMP_%session%_%subject%_%number%.mat` | `%ignore%_%session%_%subject%_%number%.mat` |
+| Perampanel filename pattern | `PMP_%session%_%subject%_%number%.mat` | `%ignore%_%session%_%subject%_%number%.mat` |
 | Ketamine/tiagabine | ✓ handled | **absent** |
 
-Perampanel pattern difference is cosmetic — both parse the same fields. Standalone uses hardcoded `PMP_` prefix; r2c uses generic `%ignore%`. Either works.
+Perampanel pattern difference is cosmetic — both parse the same fields.
 
 ### Psilocybin
 
 | Aspect | Standalone | r2c |
 |--------|-----------|-----|
+| BIDS_ROOT | `/home/yorguin/scratch/datasets/cocodelics/MEG_psilocybin` | from `bids_path` arg |
+| Metadata OUTPUT_PATH | `/home/yorguin/scratch/data/MEG_psilocybin/` | from `source_path` arg |
 | Existence check | ✓ | ✓ |
 | `BIDSPath` args | `BIDSPath(..., datatype='meg', suffix='meg', extension='.fif')` | same |
 | Infusion crop | ✓ InfusionStop→RestStop | ✓ InfusionStop→RestStop |
-| Raises if events missing | ✓ `ValueError` | ✓ `ValueError` |
-| Pattern | `%ignore%/%session%_%subject%_%number%.mat` | `%ignore%/%session%_%subject%_%number%.mat` |
+| Filename pattern | `%ignore%/%session%_%subject%_%number%.mat` | same |
 
-**Now identical in behavior.**
+**Functionally identical.**
 
 ---
 
@@ -94,5 +132,6 @@ Perampanel pattern difference is cosmetic — both parse the same fields. Standa
 |-------|----------|--------|
 | `breakpoint()` at line 835 | r2c `fieldtrip_to_bids()` only | Hangs non-interactive FieldTrip runs in pipeline |
 | Ketamine/tiagabine missing | r2c `fieldtrip_to_bids()` | Pipeline cannot bidsify these two datasets if run fresh |
-| Config-driven vs hardcoded paths | by design | No functional impact; standalone is intentionally hardcoded |
+| Metadata inspection paths not updated | FieldTrip standalone scripts | Metadata CSV/pkl still write to old `scratch/data/MEG_*/` |
+| Config-driven vs hardcoded paths | by design | No functional impact |
 | In-memory vs CSV handoff (LSD) | by design | No functional impact |
