@@ -1,62 +1,64 @@
 # cocodelics MEG datasets for the neurodags feature-extraction pipeline.
 #
 # Mounts:
-#   fir   -> Alliance cluster `fir`, real data under ~/scratch/datasets/cocodelics/
+#   fir   -> Alliance cluster `fir`
 #   local -> optional local mirror for dev (paths are placeholders; data lives on fir)
 #
-# Source = the BIDS folder that actually holds sub-*/ses-*/meg/*_meg.fif for each
-# dataset (verified on fir 2026-07-07): meg_data_BIDS/ for LSD/ketamine/perampanel/
-# tiagabine, bids/ for psilocybin.
+# Source = the freshly-bidsified BIDS produced by the standalone bidsification scripts
+# (RAN 2026-07-08), all under the shared, durable project dir:
+#   /home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/bids/MEG_<D>/sub-*/ses-*/meg/*_meg.fif
+# (Earlier this pointed at the per-dataset scratch `bids`/`meg_data_BIDS`; scratch purges at 60d,
+#  the shared dir is backed-up. LSD there was bidsified from scratch MEG_LSDV2 — see TODO §3.)
 #
-# derivatives_path points at a NEW `derivatives_neurodags/` dir so the existing
-# coco-pipe `derivatives/features@prepDur30Ov20` stay intact as a parity reference.
+# derivatives_path -> a sibling `derivatives_neurodags/MEG_<D>` under the same shared dir
+# (yorguin-owned, group-writable), keeping the coco-pipe reference derivatives untouched.
 
 lsd:
   name: MEG_LSD
   skip: False
   file_pattern:
-    fir:   "/home/yorguin/scratch/datasets/cocodelics/MEG_LSDV2/meg_data_BIDS/**/*_meg.fif"
-    local: "_data/MEG_LSDV2/**/*_meg.fif"
+    fir:   "/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/bids/MEG_LSD/**/*_meg.fif"
+    local: "_data/MEG_LSD/**/*_meg.fif"
   derivatives_path:
-    fir:   "/home/yorguin/scratch/datasets/cocodelics/MEG_LSDV2/derivatives_neurodags"
-    local: "_outputs/MEG_LSDV2"
+    fir:   "/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/derivatives_neurodags/MEG_LSD"
+    local: "_outputs/MEG_LSD"
 
 ketamine:
   name: MEG_ketamine
   skip: False
   file_pattern:
-    fir:   "/home/yorguin/scratch/datasets/cocodelics/MEG_ketamine/meg_data_BIDS/**/*_meg.fif"
+    fir:   "/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/bids/MEG_ketamine/**/*_meg.fif"
     local: "_data/MEG_ketamine/**/*_meg.fif"
   derivatives_path:
-    fir:   "/home/yorguin/scratch/datasets/cocodelics/MEG_ketamine/derivatives_neurodags"
+    fir:   "/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/derivatives_neurodags/MEG_ketamine"
     local: "_outputs/MEG_ketamine"
 
 perampanel:
   name: MEG_perampanel
   skip: False
   file_pattern:
-    fir:   "/home/yorguin/scratch/datasets/cocodelics/MEG_perampanel/meg_data_BIDS/**/*_meg.fif"
+    fir:   "/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/bids/MEG_perampanel/**/*_meg.fif"
     local: "_data/MEG_perampanel/**/*_meg.fif"
   derivatives_path:
-    fir:   "/home/yorguin/scratch/datasets/cocodelics/MEG_perampanel/derivatives_neurodags"
+    fir:   "/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/derivatives_neurodags/MEG_perampanel"
     local: "_outputs/MEG_perampanel"
 
 psilocybin:
   name: MEG_psilocybin
   skip: False
   file_pattern:
-    fir:   "/home/yorguin/scratch/datasets/cocodelics/MEG_psilocybin/bids/**/*_meg.fif"
+    fir:   "/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/bids/MEG_psilocybin/**/*_meg.fif"
     local: "_data/MEG_psilocybin/**/*_meg.fif"
   derivatives_path:
-    fir:   "/home/yorguin/scratch/datasets/cocodelics/MEG_psilocybin/derivatives_neurodags"
+    fir:   "/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/derivatives_neurodags/MEG_psilocybin"
     local: "_outputs/MEG_psilocybin"
 
 tiagabine:
   name: MEG_tiagabine
   skip: False
   file_pattern:
-    fir:   "/home/yorguin/scratch/datasets/cocodelics/MEG_tiagabine/meg_data_BIDS/**/*_meg.fif"
+    fir:   "/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/bids/MEG_tiagabine/**/*_meg.fif"
     local: "_data/MEG_tiagabine/**/*_meg.fif"
   derivatives_path:
-    fir:   "/home/yorguin/scratch/datasets/cocodelics/MEG_tiagabine/derivatives_neurodags"
+    fir:   "/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/derivatives_neurodags/MEG_tiagabine"
     local: "_outputs/MEG_tiagabine"
