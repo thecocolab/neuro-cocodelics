@@ -33,16 +33,27 @@ DS=datasets_cocodelics.yml            # the real shared-BIDS config (1 file/data
 JSONL="logs/run_${SLURM_JOB_ID}.jsonl"
 
 # CLASSICAL battery only for this smoke — the EXPERIMENTAL phi/IIT nodes (Ep_Atoms) are slow
-# and huge on real 271-channel data; validate them separately. Passing these --derivative
-# flags makes neurodags run only them + their dependencies (prep, per-epoch, aggregation).
-CLASSICAL=(
+# and huge on real 271-channel data; validate them separately.
+# NOTE: `--derivative X` runs ONLY X (deps are NOT auto-added), so the run list must include
+# the WHOLE classical chain: prep -> per-epoch Ep_* -> aggregates. The dataframe collects only
+# the for_dataframe:True aggregates.
+CLASSICAL_CHAIN=(
+  PrepDur30Ov20 Ep_XarrayEpochs
+  Ep_LZivComplexity Ep_HiguchiFD Ep_KatzFD Ep_PetrosianFD Ep_SVDEntropy
+  Ep_NumZeroCross Ep_PermEntropy Ep_SpectralEntropy Ep_HjorthParams Ep_DetrendedFluctuation
   lzivComplexityMeanEpochs higuchiFdMeanEpochs higuchiFdVarEpochs
   katzFdMeanEpochs katzFdSDEpochs petrosianFdMeanEpochs svdEntropyMeanEpochs
   numZerocrossMeanEpochs permEntropyMeanEpochs spectralEntropyMeanEpochs
   hjorthMeanEpochs detrendedFluctuationMeanEpochs
 )
-RUN_ARGS=();  for d in "${CLASSICAL[@]}"; do RUN_ARGS+=(--derivative "$d"); done
-DF_ARGS=();   for d in "${CLASSICAL[@]}"; do DF_ARGS+=(--include-derivative "$d"); done
+CLASSICAL_DF=(
+  lzivComplexityMeanEpochs higuchiFdMeanEpochs higuchiFdVarEpochs
+  katzFdMeanEpochs katzFdSDEpochs petrosianFdMeanEpochs svdEntropyMeanEpochs
+  numZerocrossMeanEpochs permEntropyMeanEpochs spectralEntropyMeanEpochs
+  hjorthMeanEpochs detrendedFluctuationMeanEpochs
+)
+RUN_ARGS=(); for d in "${CLASSICAL_CHAIN[@]}"; do RUN_ARGS+=(--derivative "$d"); done
+DF_ARGS=();  for d in "${CLASSICAL_DF[@]}"; do DF_ARGS+=(--include-derivative "$d"); done
 
 echo "===== node: $(hostname)  job: ${SLURM_JOB_ID} ====="
 python -c "import neurodags, antropy, neurokit2, fooof, mne, xarray, netCDF4; print('imports OK', neurodags.__version__)"
