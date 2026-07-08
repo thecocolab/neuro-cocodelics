@@ -29,7 +29,7 @@ rename = {
 
 df_ids = df_ids.rename(columns=rename)
 
-SOURCE_PATH = "/home/yorguin/projects/def-kjerbi/data/MEG_LSD/meg_data"
+SOURCE_PATH = "/home/yorguin/scratch/datasets/cocodelics/MEG_LSDV2/meg_data"
 
 folders = glob.glob(os.path.join(SOURCE_PATH, '*'), recursive=False)
 
@@ -48,7 +48,7 @@ megs = [ds for ds in ds_list if os.path.isdir(ds) and True] # Filter here if nee
 
 # '/home/yorguin/scratch/data/MEG_LSDV2/meg_data/310714-1_LSD_20140917_Closed1.ds/hz.ds'
 # '/home/yorguin/scratch/data/MEG_LSDV2/meg_data/1_LSD_20140626_01.ds'
-pattern = r'/home/yorguin/projects/def-kjerbi/data/MEG_LSD/meg_data/%subjectNumber%_LSD_%session%_%task%.ds'
+pattern = r'/home/yorguin/scratch/datasets/cocodelics/MEG_LSDV2/meg_data/%subjectNumber%_LSD_%session%_%task%.ds'
 
 megs_parsed = []
 for meg_file in megs:
@@ -73,7 +73,7 @@ df_megs = pd.DataFrame(megs_parsed)
 # Simplify the path for easier inspection
 def simplify_path(path):
     """Simplify the path by removing the base directory."""
-    base_dir = '/home/yorguin/projects/def-kjerbi/data/MEG_LSD/meg_data/'
+    base_dir = '/home/yorguin/scratch/datasets/cocodelics/MEG_LSDV2/meg_data/'
     return path.replace(base_dir, '')
 
 df_megs['file'] = df_megs['file'].apply(simplify_path)

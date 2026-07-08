@@ -13,7 +13,7 @@ csv = os.path.join(os.path.dirname(__file__), 'meg_bids.csv')
 
 df = pd.read_csv(csv)
 
-BIDS_ROOT = '/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/MEG_LSD'
+BIDS_ROOT = '/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/bids/MEG_LSD'
 os.makedirs(BIDS_ROOT, exist_ok=True)
 
 errors = []

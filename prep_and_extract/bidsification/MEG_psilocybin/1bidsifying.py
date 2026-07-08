@@ -26,7 +26,7 @@ datasets = {
 #    'MEG_tiagabine': '/home/yorguin/projects/def-kjerbi/data/MEG_tiagabine/',
 }
 
-OUTPUT_PATH = '/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/MEG_psilocybin/'
+OUTPUT_PATH = '/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/bids/MEG_psilocybin/'
 os.makedirs(OUTPUT_PATH, exist_ok=True)
 
 def loadmat(x,kwargs={}):
@@ -180,7 +180,7 @@ df_bids['session_bids'] = df_bids['session'].apply(lambda x: 'placebo' if x == '
 # Most of them have 2 events, or 0.
 # Will convert as is, to a raw file
 
-BIDS_ROOT = '/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/MEG_psilocybin'
+BIDS_ROOT = '/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/bids/MEG_psilocybin'
 os.makedirs(BIDS_ROOT, exist_ok=True)
 errors = []
 for i, row in df_bids.iterrows():
