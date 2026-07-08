@@ -80,9 +80,15 @@ echo "MAIN ENV READY: $ENV"
 #   neurokit2  : Fisher information (already in BASE_PKGS).
 echo "Creating EXPERIMENTAL venv at $ENV_EXP (python: $(which python))"
 uv venv "$ENV_EXP" --python "$(which python)"
-# `numpy<2` up-front so resolution is consistent with biotuner's pin.
+# `numpy<2` up-front so resolution is consistent with biotuner's pin
+# (biotuner requirements.txt: numpy>=1.21.4,<2.0). biotuner ALSO has UNDECLARED runtime
+# imports beyond its requirements (PyEMD/EMD-signal, pyACA, pytuning, PyWavelets,
+# scikit-image) on top of its declared deps (emd, contfrac, mido, sympy, soundfile) —
+# list them ALL explicitly or `import biotuner.metrics` (harmonicity node) fails. The wheel
+# metadata does NOT enforce numpy<2, so the up-front "numpy<2" pin is what holds the env at 1.26.
 uv pip install --python "$ENV_EXP/bin/python" --only-binary :all: "${FL[@]}" \
-  "numpy<2" "${BASE_PKGS[@]}" biotuner
+  "numpy<2" "${BASE_PKGS[@]}" \
+  biotuner emd contfrac mido sympy soundfile EMD-signal pyACA pytuning PyWavelets scikit-image seaborn
 uv pip install --python "$ENV_EXP/bin/python" --no-deps -e "$NRD"
 uv pip install --python "$ENV_EXP/bin/python" --only-binary :all: --reinstall-package netcdf4 netCDF4
 # phyid from git (source build; not on PyPI). Deps (numpy/scipy) already satisfied.
