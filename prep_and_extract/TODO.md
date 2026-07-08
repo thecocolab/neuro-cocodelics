@@ -17,8 +17,21 @@ nodes (`new_definitions.py`):
 - **also-defined-but-inactive in coco-pipe** (decide if wanted): `RateEntropy` (kmax=10),
   `Distance2Criticality` (chaos_feature, sigma=0.5).
 
-Each becomes a `@register_node` wrapping the same upstream lib coco-pipe used, then a
+Each becomes a `@register_node` **in neurodags** (custom_nodes, NOT coco-pipe), then a
 derivative + epoch aggregation in `pipeline_cocodelics.yml`, mirroring the classical ones.
+
+**Reference implementations located (2026-07-08):** the r2c feature code lives in
+`github.com/alberto-jj/raw_to_classification`, branch **`meeg_refactor`**, file
+`eeg_raw_to_classification/features2.py`:
+- `single_atoms(epochs, tau=5, redundancy='MMI', kind='gaussian')` — calls `phyid.calculate.calc_PhiID`
+- `atoms_results(atoms, key=..., aggregation_mode='mean-sum')` — extracts InfoDyn / IID / IIT
+- `fisher_information_feature(epochs, delay=1, dimension=3)`
+- `feature_harmonicity(input_dict, height, distance, bands)` + `process_harmonicity_output(...)`
+- `rate_entropy_feature(epochs, kmax=10)`
+phi core = `github.com/Imperial-MIND-lab/integrated-info-decomp` (the `phyid` package).
+Plan: port these bodies into a neurodags custom-node module (adapt mne-Epochs→xarray,
+depend on `phyid`), mark experimental / needs-validation. Equivalence check vs the r2c
+outputs where available.
 
 ## 2. Parity check of the classical battery vs old coco-pipe derivatives
 

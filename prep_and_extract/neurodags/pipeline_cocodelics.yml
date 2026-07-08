@@ -20,7 +20,9 @@
 
 datasets: datasets_cocodelics.yml
 mount_point: fir          # override with `-d`/edit for local; use `local` for a local mirror
-new_definitions: custom_nodes.py   # pick_meg_clean_names (CTF sensor pick + name cleanup)
+new_definitions:          # list -> load BOTH the validated + experimental node modules
+  - custom_nodes.py            # pick_meg_clean_names (CTF sensor pick + name cleanup)
+  - experimental_features.py   # EXPERIMENTAL scientific features (phi/IIT, Fisher, Harmonicity)
 
 n_jobs: 1                 # per-file parallelism; on cluster prefer slurm arrays (see README)
 joblib_backend: loky
@@ -297,6 +299,205 @@ DerivativeDefinitions:
         node: aggregate_across_dimension
         args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
 
+  # ============================================================================
+  # ===== EXPERIMENTAL (needs validation) ======================================
+  # ============================================================================
+  # "Scientific" MEG features PORTED from raw_to_classification@meeg_refactor via
+  # the custom nodes in `experimental_features.py`. These are NOT part of the
+  # validated classical battery above and have NOT been checked numerically
+  # against the original r2c outputs — treat every column below as experimental.
+  #
+  #   v2 (phi / integrated information):  Ep_Atoms -> Ep_{InfoDyn,IID,IIT}
+  #                                       -> {infodyn,iid,iit}{Mean,SD}Epochs
+  #   v1:  Ep_FisherInformation -> fisherInformation{Mean,SD}Epochs
+  #        Ep_PowerSpectrumMultitaper -> Ep_Harmonicity -> harmonicity{Mean,SD}Epochs
+  #
+  # Extra deps -> run these from the SEPARATE `neurodags-experimental` venv (numpy<2),
+  # built by cluster/build_env.sh; the classical battery uses the main (numpy>=2) env:
+  #   phyid      (git+https://github.com/Imperial-MIND-lab/integrated-info-decomp.git)
+  #   neurokit2  (Fisher information)
+  #   biotuner   (Harmonicity; pins numpy<2 -> hence the separate venv)
+  #
+  # WARNING: Ep_Atoms is HEAVY (PhiID per epoch x channel; 16 atoms x ~full time
+  # axis) and produces a LARGE .nc. It is cached (save: True) so the three
+  # atoms_results views (InfoDyn/IID/IIT) reuse it rather than recomputing PhiID.
+
+  # ---- v2: phi atoms + integrated-information metrics (per-epoch, cached) ----
+  Ep_Atoms:                       # EXPERIMENTAL — r2c single_atoms
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PrepDur30Ov20.fif
+      - id: 1
+        node: single_atoms
+        args: {epochs: id.0, tau: 5, kind: gaussian, redundancy: MMI}
+
+  Ep_InfoDyn:                     # EXPERIMENTAL — r2c atoms_results (InformationDynamics)
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: Ep_Atoms.nc
+      - id: 1
+        node: atoms_results
+        args: {atoms: id.0, key: InformationDynamics, aggregation_mode: mean-sum}
+
+  Ep_IID:                         # EXPERIMENTAL — r2c atoms_results (IntegratedInformationDecomposition)
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: Ep_Atoms.nc
+      - id: 1
+        node: atoms_results
+        args: {atoms: id.0, key: IntegratedInformationDecomposition, aggregation_mode: mean-sum}
+
+  Ep_IIT:                         # EXPERIMENTAL — r2c atoms_results (IntegratedInformationTheory)
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: Ep_Atoms.nc
+      - id: 1
+        node: atoms_results
+        args: {atoms: id.0, key: IntegratedInformationTheory, aggregation_mode: mean-sum}
+
+  # ---- v1: Fisher information (per-epoch, cached) ----
+  Ep_FisherInformation:           # EXPERIMENTAL — r2c fisher_information_feature
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PrepDur30Ov20.fif
+      - id: 1
+        node: fisher_information_feature
+        args: {epochs: id.0, delay: 1, dimension: 3}
+
+  # ---- v1: Harmonicity (multitaper power spectrum -> harmonicity, per-epoch, cached) ----
+  Ep_PowerSpectrumMultitaper:     # EXPERIMENTAL — r2c spectrum_multitaper (feeds harmonicity)
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PrepDur30Ov20.fif
+      - id: 1
+        node: spectrum_multitaper
+        args:
+          epochs: id.0
+          multitaper: {adaptive: False, low_bias: True, normalization: 'full', verbose: 0}
+
+  Ep_Harmonicity:                 # EXPERIMENTAL — r2c feature_harmonicity + process_harmonicity_output
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: Ep_PowerSpectrumMultitaper.nc
+      - id: 1
+        node: feature_harmonicity
+        args: {power_spectrum: id.0, height: null, distance: null, bands: null}
+
+  # ---- EXPERIMENTAL epoch aggregation -> dataframe features ----
+  infodynMeanEpochs:              # EXPERIMENTAL
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_InfoDyn.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
+
+  infodynSDEpochs:                # EXPERIMENTAL
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_InfoDyn.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'std'}
+
+  iidMeanEpochs:                  # EXPERIMENTAL
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_IID.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
+
+  iidSDEpochs:                    # EXPERIMENTAL
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_IID.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'std'}
+
+  iitMeanEpochs:                  # EXPERIMENTAL
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_IIT.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
+
+  iitSDEpochs:                    # EXPERIMENTAL
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_IIT.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'std'}
+
+  fisherInformationMeanEpochs:    # EXPERIMENTAL
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_FisherInformation.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
+
+  fisherInformationSDEpochs:      # EXPERIMENTAL
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_FisherInformation.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'std'}
+
+  harmonicityMeanEpochs:          # EXPERIMENTAL
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_Harmonicity.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
+
+  harmonicitySDEpochs:            # EXPERIMENTAL
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_Harmonicity.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'std'}
+
 DerivativeList:
   - PrepDur30Ov20
   # per-epoch intermediates
@@ -324,3 +525,23 @@ DerivativeList:
   - spectralEntropyMeanEpochs
   - hjorthMeanEpochs
   - detrendedFluctuationMeanEpochs
+  # ===== EXPERIMENTAL (needs validation) — see experimental_features.py =====
+  # per-epoch intermediates
+  - Ep_Atoms
+  - Ep_InfoDyn
+  - Ep_IID
+  - Ep_IIT
+  - Ep_FisherInformation
+  - Ep_PowerSpectrumMultitaper
+  - Ep_Harmonicity
+  # experimental dataframe features
+  - infodynMeanEpochs
+  - infodynSDEpochs
+  - iidMeanEpochs
+  - iidSDEpochs
+  - iitMeanEpochs
+  - iitSDEpochs
+  - fisherInformationMeanEpochs
+  - fisherInformationSDEpochs
+  - harmonicityMeanEpochs
+  - harmonicitySDEpochs

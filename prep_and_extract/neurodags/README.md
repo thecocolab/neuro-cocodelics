@@ -6,8 +6,17 @@ for M/EEG derivatives — replacing the coco-pipe `legacy/r2c_project` feature s
 
 Scope: the **classical complexity/entropy battery** (the feature set the downstream
 ML actually consumes). This maps 1:1 onto neurodags **built-in nodes** — no custom
-nodes are required. The `v1` (Fisher/Harmonicity) and `v2` (phi/IIT) "scientific"
-features are intentionally **out of scope** here (they would need custom nodes).
+nodes are required.
+
+The `v1` (Fisher/Harmonicity) and `v2` (phi/IIT) "scientific" features are ALSO
+provided, but as **EXPERIMENTAL / NEEDS-VALIDATION** custom nodes in
+`experimental_features.py` (loaded alongside `custom_nodes.py` via the
+`new_definitions` list). They are faithful ports of the r2c `@meeg_refactor`
+implementations but have **not** been validated numerically against the original r2c
+outputs — keep them clearly separate from the validated classical battery. They run
+from a **separate `neurodags-experimental` venv** (`numpy<2`, because the `biotuner`
+dependency pins it) with extra deps `phyid` + `neurokit2` + `biotuner` — built by
+`cluster/build_env.sh` alongside the main env.
 
 ## Files
 
