@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cocodelics — Bidsification Versions &amp; Differences</title>
+<style>
+  :root{
+    --bg:#ffffff; --fg:#1a1a1a; --muted:#5a6270; --line:#e2e6ec; --soft:#f6f8fa;
+    --accent:#2d6cdf; --ok:#1a7f42; --no:#c0392b; --warnbg:#fff6e5; --warnbd:#e0a800;
+    --code:#0b3d91; --codebg:#f0f3f7;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0f1115; --fg:#e6e8ec; --muted:#9aa4b2; --line:#262b33; --soft:#171b21;
+      --accent:#6ea8fe; --ok:#4ec97e; --no:#ff6b6b; --warnbg:#2a2410; --warnbd:#b9962f;
+      --code:#9ec1ff; --codebg:#171b21;
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1000px;margin:0 auto;padding:2.4rem 1.3rem 4rem;}
+  h1{font-size:1.8rem;margin:.2rem 0 .3rem;letter-spacing:-.01em}
+  h2{font-size:1.25rem;margin:2.4rem 0 .7rem;padding-bottom:.35rem;border-bottom:2px solid var(--line)}
+  h3{font-size:1.02rem;margin:1.5rem 0 .4rem}
+  p{margin:.5rem 0}
+  .sub{color:var(--muted);font-size:.92rem}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.86em;
+    background:var(--codebg);color:var(--code);padding:.08em .38em;border-radius:4px}
+  .scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:.6rem 0}
+  table{border-collapse:collapse;width:100%;font-size:.9rem;min-width:520px}
+  th,td{border:1px solid var(--line);padding:.5rem .6rem;text-align:left;vertical-align:top}
+  th{background:var(--soft);font-weight:650}
+  tbody tr:nth-child(even){background:var(--soft)}
+  .yes{color:var(--ok);font-weight:700}
+  .nope{color:var(--no);font-weight:700}
+  .tag{display:inline-block;font-size:.72rem;font-weight:700;padding:.1rem .45rem;border-radius:20px;
+    border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+  .tag.active{color:var(--ok);border-color:var(--ok)}
+  .tag.legacy{color:var(--muted)}
+  .tag.pipe{color:var(--accent);border-color:var(--accent)}
+  .callout{background:var(--warnbg);border:1px solid var(--warnbd);border-radius:8px;padding:.7rem 1rem;margin:1rem 0}
+  .callout b{color:var(--fg)}
+  ul{margin:.4rem 0 .8rem;padding-left:1.3rem}
+  li{margin:.25rem 0}
+  .foot{margin-top:2.5rem;padding-top:1rem;border-top:1px solid var(--line);color:var(--muted);font-size:.82rem}
+  .lead{font-size:1.05rem;color:var(--fg)}
+  .mono-sm{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.8rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>cocodelics — Bidsification Versions &amp; Differences</h1>
+<p class="sub">MEG raw (CTF <code>.ds</code> / FieldTrip <code>.mat</code>) → BIDS <code>.fif</code>. Generated 2026-07-08 from a scan of both repos.</p>
+
+<p class="lead">Yes — there are <strong>three</strong> parallel implementations of bidsification. Two are
+standalone per-dataset script sets (one legacy, one active); the third is injected into the
+coco-pipe pipeline. They share the same core logic but diverge on paths, robustness, dataset
+coverage, and one leftover debugging bug.</p>
+
+<h2>1. The three versions</h2>
+<div class="scroll">
+<table>
+<thead><tr><th>Version</th><th>Location</th><th>Form</th><th>Datasets covered</th><th>Status</th></tr></thead>
+<tbody>
+<tr>
+  <td><b>V1</b> <span class="tag legacy">legacy</span></td>
+  <td><code>cocodelics/bidsification/</code><br><span class="mono-sm">(yjmantilla/cocodelics repo)</span></td>
+  <td>Standalone scripts, one dir per dataset</td>
+  <td>LSD, ketamine, perampanel, psilocybin, tiagabine</td>
+  <td>Superseded seed. Frozen.</td>
+</tr>
+<tr>
+  <td><b>V2</b> <span class="tag active">active</span></td>
+  <td><code>neuro-cocodelics/prep_and_extract/bidsification/</code><br><span class="mono-sm">(thecocolab/neuro-cocodelics repo)</span></td>
+  <td>Standalone scripts (evolved from V1)</td>
+  <td>LSD, ketamine, perampanel, psilocybin, tiagabine</td>
+  <td>Current. Use this.</td>
+</tr>
+<tr>
+  <td><b>V3</b> <span class="tag pipe">pipeline</span></td>
+  <td><code>…/r2c_project/redefinitions_cocosprint.py</code><br><span class="mono-sm">(identical in both repos, 1053 lines)</span></td>
+  <td>Functions injected into coco-pipe via <code>redefine_bidsify</code></td>
+  <td>LSD, perampanel, psilocybin <b>only</b></td>
+  <td>Pipeline path. Has open bug + coverage gap.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="sub">The r2c <code>redefinitions_cocosprint.py</code> is byte-identical between the two repos.
+V1 and V2 differ for every dataset script (see §3). An existing narrative comparison of
+V2-standalone vs V3-pipeline lives at <code>r2c_project/BIDSIFICATION_COMPARISON.md</code>.</p>
+
+<h2>2. Per-dataset coverage</h2>
+<div class="scroll">
+<table>
+<thead><tr><th>Dataset</th><th>Raw format</th><th>V1 standalone</th><th>V2 standalone</th><th>V3 r2c pipeline</th><th>Session mapping</th></tr></thead>
+<tbody>
+<tr><td><b>LSD</b></td><td>CTF <code>.ds</code> (413 files, incl MMN)</td><td class="yes">✓ (3 steps)</td><td class="yes">✓ (3 steps)</td><td class="yes">✓</td><td>placebo / lsd — by date, Jordan-Venkatesh logic</td></tr>
+<tr><td><b>ketamine</b></td><td>FieldTrip <code>.mat</code> (36)</td><td class="yes">✓</td><td class="yes">✓</td><td class="nope">✗ absent</td><td>PLA→placebo else ketamine</td></tr>
+<tr><td><b>perampanel</b></td><td>FieldTrip <code>.mat</code> (40)</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td>PLA→placebo else perampanel</td></tr>
+<tr><td><b>psilocybin</b></td><td>FieldTrip <code>.mat</code> (30, pla/psi)</td><td class="yes">✓</td><td class="yes">✓ + crop</td><td class="yes">✓ + crop</td><td>PLA→placebo else psilocybin</td></tr>
+<tr><td><b>tiagabine</b></td><td>FieldTrip <code>.mat</code> (30)</td><td class="yes">✓</td><td class="yes">✓</td><td class="nope">✗ absent</td><td>PLA→placebo else tiagabine</td></tr>
+</tbody>
+</table>
+</div>
+<p class="sub">Only the standalone versions (V1/V2) cover all five datasets. The r2c pipeline
+(<code>fieldtrip_to_bids</code> + <code>bidsify</code> dispatcher) never wired up ketamine or tiagabine.</p>
+
+<h2>3. V1 → V2 (standalone evolution)</h2>
+<p>Same skeleton per dataset (load <code>.mat</code>/<code>.ds</code> → inspect metadata → build BIDS entities →
+<code>write_raw_bids</code>). V2 changed:</p>
+<h3>Paths (repointed 2026-07-08 to the shared, durable project storage)</h3>
+<ul>
+<li><b>Raw source:</b> V1 <code>~/scratch/data/MEG_*</code> (now empty) → V2 <code>/project/def-kjerbi/data/MEG_*/meg_data</code> (shared raw).</li>
+<li><b>BIDS output:</b> V1 <code>~/scratch/…/meg_data_BIDS</code> → V2 <code>/project/rrg-kjerbi/shared/neuro-cocodelics/MEG_&lt;D&gt;</code> (backed-up, group-writable).</li>
+<li><b>Metadata (csv/pkl/txt):</b> V1 wrote next to the dataset → V2 uses a dedicated <code>OUTPUT_PATH</code> with <code>os.makedirs(...)</code> (V1 could crash if the dir was missing).</li>
+<li><b>LSD:</b> V1 hardcoded absolute <code>352.html</code> / <code>meg_bids.csv</code> paths → V2 uses <code>os.path.dirname(__file__)</code> (portable, self-contained).</li>
+</ul>
+<h3>Robustness / correctness</h3>
+<ul>
+<li><b>Idempotency:</b> V2 wraps writes in <code>if not os.path.isfile(bids_path.fpath): … else skip</code>. V1 always re-wrote (and always <code>overwrite=True</code>).</li>
+<li><b>Explicit BIDS entities:</b> V2 uses <code>BIDSPath(…, datatype='meg', suffix='meg', extension='.fif')</code>; V1 relied on defaults.</li>
+<li><b>Psilocybin crop (scientific!):</b> V2 crops each recording to the post-infusion rest window (<code>InfusionStop → RestStop</code>). V1 wrote the whole recording uncropped.</li>
+</ul>
+
+<h2>4. Standalone (V2) vs r2c pipeline (V3)</h2>
+<div class="scroll">
+<table>
+<thead><tr><th>Aspect</th><th>V2 standalone</th><th>V3 r2c <code>redefinitions_cocosprint.py</code></th></tr></thead>
+<tbody>
+<tr><td>Invocation</td><td>Run each script directly</td><td>Called by coco-pipe as <code>bidsify(source, bids, DATASET_CFG, pipeline_cfg)</code></td></tr>
+<tr><td>Paths</td><td>Constants at top of each script</td><td>Read from <code>DATASET_CFG</code> / <code>pipeline_cfg</code> (config-driven)</td></tr>
+<tr><td>LSD handoff</td><td>Step 2 writes <code>meg_bids.csv</code>; step 3 reads it</td><td><code>thanks_jordan_venkatesh()</code> returns the DataFrame in memory to <code>lsd_bids_conversion()</code></td></tr>
+<tr><td>LSD correction logic</td><td colspan="2" style="text-align:center">Identical — same Jordan-Venkatesh ID/task/session corrections</td></tr>
+<tr><td>ketamine / tiagabine</td><td class="yes">✓ handled</td><td class="nope">✗ not implemented</td></tr>
+<tr><td>Psilocybin infusion crop</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+<tr><td>Left-over <code>breakpoint()</code></td><td class="yes">none</td><td class="nope">✗ line 835 (active)</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>5. Known issues &amp; gotchas</h2>
+<div class="callout">
+<b>⚠ <code>breakpoint()</code> at <code>redefinitions_cocosprint.py:835</code> is uncommented.</b>
+Inside <code>fieldtrip_to_bids()</code> — it hangs any non-interactive (pipeline / <code>sbatch</code>) run.
+Eight other <code>breakpoint()</code> calls in the file are commented out; this one is not. Remove before
+running V3 through the pipeline.
+</div>
+<div class="callout">
+<b>⚠ r2c (V3) cannot bidsify ketamine or tiagabine.</b>
+Only the standalone scripts (V1/V2) handle them. If a fresh rebuild goes through the pipeline,
+those two datasets will be skipped.
+</div>
+<ul>
+<li><b>LSD is a 3-step flow:</b> <code>1download.py</code> (fetch <code>.ds</code> from Dropbox) → <code>2bidsifying_preparation.py</code> (parse + apply the Jordan-Venkatesh corrections → <code>meg_bids.csv</code>) → <code>3bidsifying.py</code> (write BIDS). The other datasets are a single <code>1bidsifying.py</code>.</li>
+<li><b>Jordan-Venkatesh corrections (LSD):</b> fix misnamed subject IDs (e.g. <code>231109-1</code>→<code>230911-1</code>), task typos (<code>Opoen1</code>→<code>Open1</code>, <code>Audio</code>→<code>Music</code>), drop spurious extra recordings (<code>Music2</code>/<code>Video2</code>/<code>Closed12</code>), and assign placebo-vs-LSD session per subject by date. Target = 20 subjects × 6 tasks × 2 sessions.</li>
+<li><b>The 413 raw LSD <code>.ds</code></b> include MMN and other non-study tasks; the correction logic filters to the 6 study tasks (Closed1/2, Open1/2, Music, Video).</li>
+</ul>
+
+<h2>6. Recommendation</h2>
+<ul>
+<li>Treat <b>V2</b> (<code>neuro-cocodelics/prep_and_extract/bidsification/</code>) as the source of truth — per-dataset, reproducible, sourced from shared <code>/project</code>, idempotent, full 5-dataset coverage.</li>
+<li>Treat <b>V1</b> as history; consider archiving the old <code>cocodelics</code> repo.</li>
+<li>Before ever running <b>V3</b> in the pipeline: remove the <code>breakpoint()</code> and port ketamine/tiagabine — or keep bidsification as the standalone V2 stage and let the pipeline consume its BIDS output.</li>
+<li>Still pending on V2 (see <code>prep_and_extract/TODO.md §3</code>): a cluster test-run, verifying the LSD corrections against the <code>/project</code> tree, and minor cleanup (dead docstring, <code>main()</code> guard).</li>
+</ul>
+
+<p class="foot">Sources: diff of <code>cocodelics/bidsification</code> ↔ <code>neuro-cocodelics/prep_and_extract/bidsification</code>;
+<code>redefinitions_cocosprint.py</code> (1053 lines, identical across repos);
+<code>r2c_project/{REPORT,BIDSIFICATION_COMPARISON}.md</code>; cluster raw-data survey on <code>fir</code>.
+Verify specifics against the code — paths and coverage drift.</p>
+
+</div>
+</body>
+</html>
