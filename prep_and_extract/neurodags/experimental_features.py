@@ -47,11 +47,13 @@ Two tiers of "scientific" features are provided:
                               (r2c ``spectrum_multitaper``).
     - ``feature_harmonicity``        : Tenney height / harmonic similarity / subharmonic
                               tension of spectral-peak sets (r2c ``feature_harmonicity`` +
-                              ``process_harmonicity_output``; via ``biotuner``).
+                              ``process_harmonicity_output``; metrics VENDORED from
+                              ``biotuner`` below — no biotuner runtime dependency).
 
-Optional heavy deps (``phyid``, ``neurokit2``, ``biotuner``) are imported LAZILY inside
-each node, so this module imports fine even when a dep is absent — only the affected
-node raises at call time.
+Extra deps (``phyid`` for v2 phi/IIT, ``neurokit2`` for Fisher) are imported LAZILY inside
+each node, so this module imports fine even when a dep is absent — only the affected node
+raises at call time. Harmonicity has NO extra dep: its 3 biotuner metrics are vendored
+below (numpy + sympy only). Everything runs in a single ``numpy>=2`` env.
 
 Loaded via ``new_definitions`` (list) in ``pipeline_cocodelics.yml`` alongside
 ``custom_nodes.py``. Does NOT require any change to neurodags or coco-pipe.
@@ -128,13 +130,18 @@ IIT_METRICS = {
 
 
 # ============================================================================
-# Harmonicity metrics — VENDORED from biotuner (AntoineBellemare/biotuner:
-# metrics.py + biotuner_utils.py), ported verbatim. Only these 3 metrics
-# (+2 helpers) are used by feature_harmonicity. Vendoring them avoids depending
-# on biotuner, whose package __init__ drags in a heavy stack (PyEMD/pyACA/mido/
-# fooof/…) and pins numpy<2 — none of which these pure number-theory functions
-# need (numpy + sympy + stdlib only). Verified bit-for-bit equal to biotuner
-# (incl. the coincident-peak divide-by-zero and single-peak NaN paths), 2026-07-08.
+# Harmonicity metrics — VENDORED (ported verbatim) from biotuner.
+#   Source : https://github.com/AntoineBellemare/biotuner  (metrics.py + biotuner_utils.py)
+#   License: MIT — © the biotuner authors (Antoine Bellemare et al.). MIT permits
+#            verbatim reuse provided this attribution/notice is retained (as here).
+#   Refs   : dyad_similarity / ratios2harmsim = Gill & Purves (2009);
+#            compute_subharmonic_tension = Chan et al. (2019).
+#
+# Only these 3 metrics (+2 helpers) are used by feature_harmonicity. Vendoring them
+# avoids depending on `biotuner`, whose package __init__ drags in a heavy stack
+# (PyEMD/pyACA/mido/fooof/…) and pins numpy<2 — none of which these pure number-theory
+# functions need (numpy + sympy + stdlib only). Verified BIT-FOR-BIT equal to the
+# biotuner originals (incl. coincident-peak divide-by-zero + single-peak NaN paths), 2026-07-08.
 # ============================================================================
 
 def _getPairs(peaks):
@@ -622,7 +629,8 @@ def feature_harmonicity(
     NEEDS-VALIDATION. Ported verbatim from raw_to_classification@meeg_refactor
     (features2.py:1364, folding in ``process_harmonicity_output`` at :1442). Given a
     per-epoch/channel power spectrum, it finds the dominant peak in each frequency band,
-    then computes three harmonicity metrics over the set of band peaks via ``biotuner``:
+    then computes three harmonicity metrics over the set of band peaks (using the
+    biotuner metrics vendored above — no biotuner runtime dependency):
 
     * ``tenney``          : integral Tenney height (``integral_tenneyHeight``)
     * ``harmsim``         : mean harmonic similarity (``ratios2harmsim``)
