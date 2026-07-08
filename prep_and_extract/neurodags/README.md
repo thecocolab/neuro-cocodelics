@@ -13,10 +13,11 @@ provided, but as **EXPERIMENTAL / NEEDS-VALIDATION** custom nodes in
 `experimental_features.py` (loaded alongside `custom_nodes.py` via the
 `new_definitions` list). They are faithful ports of the r2c `@meeg_refactor`
 implementations but have **not** been validated numerically against the original r2c
-outputs — keep them clearly separate from the validated classical battery. They run
-from a **separate `neurodags-experimental` venv** (`numpy<2`, because the `biotuner`
-dependency pins it) with extra deps `phyid` + `neurokit2` + `biotuner` — built by
-`cluster/build_env.sh` alongside the main env.
+outputs — keep them clearly separate from the validated classical battery. They add
+just two deps: `phyid` (v2 phi/IIT) and `neurokit2` (Fisher). The Harmonicity metrics
+are **vendored** into `experimental_features.py` (ported verbatim from biotuner,
+verified bit-for-bit) so there is NO `biotuner` dependency and NO `numpy<2` pin —
+everything runs in the single `numpy>=2` env built by `cluster/build_env.sh`.
 
 ## Files
 

@@ -1,28 +1,25 @@
 #!/bin/bash
-# Build the uv venv(s) for the neurodags cocodelics pipeline, on scratch.
+# Build the uv venv for the neurodags cocodelics pipeline, on scratch.
 #
-# Run on the LOGIN node of `fir` (needs internet for the PyPI-only packages).
-# `--only-binary :all:` guarantees NO source compilation — every dependency is a
-# prebuilt wheel (Alliance wheelhouse for the sci-stack, PyPI for neurodags/
-# neurokit2/fooof/biotuner), so this stays a light download-only op, not compute.
-# (The one exception is `phyid`, which has no PyPI release and is built from a git
-#  source checkout — pure python, no C compilation.)
+# Run on the LOGIN node of `fir` (needs internet for the PyPI/git-only packages).
+# `--only-binary :all:` guarantees NO source compilation for the wheel packages —
+# every dependency is a prebuilt wheel (Alliance wheelhouse for the sci-stack, PyPI
+# for neurokit2/fooof/sympy), so this stays a light download-only op, not compute.
+# (The exceptions are `phyid` and editable `neurodags`, built from git source
+#  checkouts — both pure python, no C compilation.)
 #
 #   ssh fir 'bash -l ~/scratch/cocodelics_neurodags/cluster/build_env.sh'
 #
-# Builds TWO venvs:
-#   $ENV      neurodags              -> numpy>=2. The VALIDATED classical battery.
-#   $ENV_EXP  neurodags-experimental -> numpy<2.  The EXPERIMENTAL "scientific"
-#                                        features (phi/IIT, Fisher, Harmonicity).
-# They are kept separate on purpose: biotuner (needed by the Harmonicity node) pins
-# `numpy<2`, which is incompatible with the numpy>=2 classical stack. Run the
-# experimental derivatives with $ENV_EXP and the classical ones with $ENV.
+# ONE env covers BOTH the validated classical battery AND the experimental
+# "scientific" features. The experimental features need no numpy<2 pin: the phi/IIT
+# math is `phyid`, Fisher is `neurokit2`, and the Harmonicity metrics are VENDORED
+# into experimental_features.py (numpy+sympy only) instead of depending on biotuner
+# (which would have dragged in PyEMD/pyACA/mido/… and pinned numpy<2).
 set -euo pipefail
 
 module load StdEnv/2023 python/3.11
 
 ENV="/scratch/${USER}/envs/neurodags"
-ENV_EXP="/scratch/${USER}/envs/neurodags-experimental"
 NRD="/scratch/${USER}/neurodags"
 
 WHEELHOUSE=(
@@ -34,70 +31,36 @@ WHEELHOUSE=(
 FL=()
 for w in "${WHEELHOUSE[@]}"; do FL+=(--find-links "$w"); done
 
-# Sci-stack shared by both envs (numpy is pinned per-env below; neurodags installed
-# from the git checkout, editable, in each env).
-BASE_PKGS=(
-  neurokit2 fooof
+# Sci-stack. `sympy` is for the vendored Harmonicity metrics; `neurokit2` for Fisher.
+PKGS=(
+  neurokit2 fooof sympy
   mne mne-bids antropy xarray h5netcdf
-  scipy pandas scikit-learn matplotlib
+  numpy scipy pandas scikit-learn matplotlib
   structlog pydantic joblib tqdm pyyaml
 )
 
-# neurodags: git checkout, shared by both envs + EDITABLE install, so `git pull` on the
-# cluster updates it instantly (pure python, no reinstall). Public repo -> HTTPS.
+# neurodags: git checkout + EDITABLE install, so `git pull` on the cluster updates it
+# instantly (pure python, no reinstall). Public repo -> HTTPS clone needs no auth.
 if [ ! -d "$NRD/.git" ]; then
   git clone https://github.com/yjmantilla/neurodags.git "$NRD"
 fi
+
+echo "Creating venv at $ENV (python: $(which python))"
+uv venv "$ENV" --python "$(which python)"
+uv pip install --python "$ENV/bin/python" --only-binary :all: "${FL[@]}" "${PKGS[@]}"
+uv pip install --python "$ENV/bin/python" --no-deps -e "$NRD"
 
 # netCDF4 must come from PyPI, NOT the wheelhouse: the +computecanada netCDF4 is
 # MPI-linked and imports mpi4py, which only exists on the cvmfs PYTHONPATH. The job
 # runs with `unset PYTHONPATH` (so the venv is self-contained and numpy's C-extension
 # loads on the compute node), so we need the self-contained PyPI netCDF4 (bundles libs).
-
-# ============================================================================
-# 1) MAIN env — numpy>=2 — VALIDATED classical complexity/entropy battery
-# ============================================================================
-echo "Creating MAIN venv at $ENV (python: $(which python))"
-uv venv "$ENV" --python "$(which python)"
-uv pip install --python "$ENV/bin/python" --only-binary :all: "${FL[@]}" \
-  numpy "${BASE_PKGS[@]}"
-uv pip install --python "$ENV/bin/python" --no-deps -e "$NRD"
 uv pip install --python "$ENV/bin/python" --only-binary :all: --reinstall-package netcdf4 netCDF4
-echo "MAIN ENV READY: $ENV"
 
-# ============================================================================
-# 2) EXPERIMENTAL env — numpy<2 — "scientific" features (NEEDS VALIDATION)
-# ============================================================================
-# Required only by experimental_features.py (single_atoms/atoms_results,
-# fisher_information_feature, spectrum_multitaper, feature_harmonicity). SEPARATE from
-# the main env because biotuner pins numpy<2.
-#
-#   phyid      : PhiID integrated-information decomposition (v2 phi/IIT). No PyPI
-#                release -> installed from a git SOURCE checkout (pure python, no
-#                compilation), hence NOT under `--only-binary`.
-#   biotuner   : harmonicity metrics (Tenney height / harmonic similarity / subharmonic
-#                tension). This is what forces numpy<2 for the whole experimental env.
-#   neurokit2  : Fisher information (already in BASE_PKGS).
-echo "Creating EXPERIMENTAL venv at $ENV_EXP (python: $(which python))"
-uv venv "$ENV_EXP" --python "$(which python)"
-# `numpy<2` up-front so resolution is consistent with biotuner's pin
-# (biotuner requirements.txt: numpy>=1.21.4,<2.0). biotuner ALSO has UNDECLARED runtime
-# imports beyond its requirements (PyEMD/EMD-signal, pyACA, pytuning, PyWavelets,
-# scikit-image) on top of its declared deps (emd, contfrac, mido, sympy, soundfile) —
-# list them ALL explicitly or `import biotuner.metrics` (harmonicity node) fails. The wheel
-# metadata does NOT enforce numpy<2, so the up-front "numpy<2" pin is what holds the env at 1.26.
-uv pip install --python "$ENV_EXP/bin/python" --only-binary :all: "${FL[@]}" \
-  "numpy<2" "${BASE_PKGS[@]}" \
-  biotuner emd contfrac mido sympy soundfile EMD-signal pyACA pytuning PyWavelets scikit-image seaborn
-uv pip install --python "$ENV_EXP/bin/python" --no-deps -e "$NRD"
-uv pip install --python "$ENV_EXP/bin/python" --only-binary :all: --reinstall-package netcdf4 netCDF4
-# phyid from git (source build; not on PyPI). Deps (numpy/scipy) already satisfied.
-uv pip install --python "$ENV_EXP/bin/python" \
+# phyid (v2 phi/IIT integrated-information decomposition): no PyPI release -> git source
+# build (pure python, no compilation), so NOT under `--only-binary`. numpy-agnostic.
+uv pip install --python "$ENV/bin/python" \
   "phyid @ git+https://github.com/Imperial-MIND-lab/integrated-info-decomp.git"
-echo "EXPERIMENTAL ENV READY: $ENV_EXP"
 
-echo "NOTE: run the experimental derivatives (Ep_Atoms/Ep_InfoDyn/Ep_IID/Ep_IIT/"
-echo "      Ep_FisherInformation/Ep_PowerSpectrumMultitaper/Ep_Harmonicity + their"
-echo "      *MeanEpochs/*SDEpochs) with \$ENV_EXP; the classical battery with \$ENV."
+echo "ENV READY: $ENV"
 echo "NOTE: the job does 'unset PYTHONPATH' + 'export PYTHONNOUSERSITE=1' before use."
 echo "NOTE: import sanity-check (mne/neurodags) runs inside the sbatch job, NOT on login."

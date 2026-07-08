@@ -75,6 +75,9 @@ import json
 import os
 import warnings
 
+from fractions import Fraction
+from itertools import combinations as _combinations, product as _product
+
 import numpy as np
 import xarray as xr
 
@@ -122,6 +125,91 @@ IIT_METRICS = {
     "CausalDensity": ["xtr", "ytr", "sty", "str", "str", "xty", "ytx", "stx"],
     "IntegratedInformation": ["rts", "xts", "sts", "sty", "str", "yts", "ytx", "stx", "xty"],
 }
+
+
+# ============================================================================
+# Harmonicity metrics — VENDORED from biotuner (AntoineBellemare/biotuner:
+# metrics.py + biotuner_utils.py), ported verbatim. Only these 3 metrics
+# (+2 helpers) are used by feature_harmonicity. Vendoring them avoids depending
+# on biotuner, whose package __init__ drags in a heavy stack (PyEMD/pyACA/mido/
+# fooof/…) and pins numpy<2 — none of which these pure number-theory functions
+# need (numpy + sympy + stdlib only). Verified bit-for-bit equal to biotuner
+# (incl. the coincident-peak divide-by-zero and single-peak NaN paths), 2026-07-08.
+# ============================================================================
+
+def _getPairs(peaks):
+    """biotuner_utils.getPairs — all ordered pairs (verbatim, incl. pop(i-i))."""
+    peaks_ = list(peaks).copy()
+    out = []
+    for i in range(len(peaks_) - 1):
+        a = peaks_.pop(i - i)  # i-i == 0
+        for j in peaks_:
+            out.append([a, j])
+    return out
+
+
+def _dyad_similarity(ratio):
+    """biotuner.metrics.dyad_similarity — Gill & Purves (2009)."""
+    frac = Fraction(float(ratio)).limit_denominator(1000)
+    x, y = frac.numerator, frac.denominator
+    return ((x + y - 1) / (x * y)) * 100
+
+
+def ratios2harmsim(ratios):
+    """biotuner.metrics.ratios2harmsim — harmonic similarity per ratio."""
+    fracs = [Fraction(r).limit_denominator(1000) for r in ratios]
+    return np.array([_dyad_similarity(f.numerator / f.denominator) for f in fracs])
+
+
+def integral_tenneyHeight(peaks, avg=True):
+    """biotuner.metrics.integral_tenneyHeight — prime-factorised Tenney height."""
+    from sympy import factorint  # lazy: only harmonicity needs sympy
+    from numpy import log2
+
+    pairs = _getPairs(peaks)
+    tenney = []
+    for p in pairs:
+        try:
+            frac = Fraction(p[0] / p[1]).limit_denominator(1000)
+            x, y = frac.numerator, frac.denominator
+            fx, fy = factorint(x), factorint(y)
+            th = sum(fx[k] * log2(k) for k in fx) + sum(fy[k] * log2(k) for k in fy)
+            tenney.append(th)
+        except ZeroDivisionError:
+            continue
+    if avg:
+        return np.average(tenney) if tenney else 0
+    return tenney
+
+
+def compute_subharmonic_tension(chord, n_harmonics, delta_lim, min_notes=2):
+    """biotuner.metrics.compute_subharmonic_tension — Chan et al. (2019)."""
+    if not chord or len(chord) < min_notes:
+        return [], [], "NaN", []
+    subharms = [np.array([1000 / (i / j) for j in range(1, n_harmonics + 1)]) for i in chord]
+    combi = np.array(list(_product(*subharms)))
+    delta_t, common_subs = [], []
+    for group in range(len(combi)):
+        for sc in _combinations(combi[group], min_notes):
+            if all(np.abs(np.diff(sc)) < delta_lim):
+                delta_t.append(np.min(np.abs(np.diff(sc))))
+                common_subs.append(np.mean(sc))
+    harm_temp, overall_temp, subharm_tension = [], [], []
+    if len(delta_t) > 0:
+        try:
+            for i in range(len(delta_t)):
+                delta_norm = delta_t[i] / common_subs[i]
+                harm_temp.append(1 / delta_norm)
+                overall_temp.append((1 / common_subs[i]) * (delta_t[i]))
+            try:
+                subharm_tension.append(((sum(overall_temp)) / len(delta_t)))
+            except ZeroDivisionError:
+                subharm_tension.append("NaN")
+        except IndexError:
+            subharm_tension = "NaN"
+    else:
+        subharm_tension = "NaN"
+    return common_subs, delta_t, subharm_tension, harm_temp
 
 
 # ============================================================================
@@ -568,11 +656,7 @@ def feature_harmonicity(
     pipeline logs clean; the numeric result is unaffected.
     """
     from scipy.signal import find_peaks
-    from biotuner.metrics import (
-        compute_subharmonic_tension,
-        integral_tenneyHeight,
-        ratios2harmsim,
-    )
+    # harmonicity metrics are vendored above (no biotuner dep)
 
     da = _as_dataarray(power_spectrum).transpose("epochs", "spaces", "frequencies")
     psds = np.asarray(da.values)
