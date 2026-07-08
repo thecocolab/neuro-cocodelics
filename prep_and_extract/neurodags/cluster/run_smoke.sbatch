@@ -29,31 +29,33 @@ cd "/scratch/${USER}/cocodelics_neurodags"
 mkdir -p logs outputs
 
 PIPE=pipeline_cocodelics.yml
-DS=cluster/datasets_smoke.yml
+DS=datasets_cocodelics.yml            # the real shared-BIDS config (1 file/dataset via --max-files)
 JSONL="logs/run_${SLURM_JOB_ID}.jsonl"
 
+# CLASSICAL battery only for this smoke — the EXPERIMENTAL phi/IIT nodes (Ep_Atoms) are slow
+# and huge on real 271-channel data; validate them separately. Passing these --derivative
+# flags makes neurodags run only them + their dependencies (prep, per-epoch, aggregation).
+CLASSICAL=(
+  lzivComplexityMeanEpochs higuchiFdMeanEpochs higuchiFdVarEpochs
+  katzFdMeanEpochs katzFdSDEpochs petrosianFdMeanEpochs svdEntropyMeanEpochs
+  numZerocrossMeanEpochs permEntropyMeanEpochs spectralEntropyMeanEpochs
+  hjorthMeanEpochs detrendedFluctuationMeanEpochs
+)
+RUN_ARGS=();  for d in "${CLASSICAL[@]}"; do RUN_ARGS+=(--derivative "$d"); done
+DF_ARGS=();   for d in "${CLASSICAL[@]}"; do DF_ARGS+=(--include-derivative "$d"); done
+
 echo "===== node: $(hostname)  job: ${SLURM_JOB_ID} ====="
-echo "===== import sanity (compute node) ====="
 python -c "import neurodags, antropy, neurokit2, fooof, mne, xarray, netCDF4; print('imports OK', neurodags.__version__)"
 
-echo "===== count-inputs ====="
-neurodags --log-level WARNING count-inputs "$PIPE" -d "$DS"
-
-echo "===== status (before) ====="
-neurodags --log-level WARNING status "$PIPE" -d "$DS" || true
-
-echo "===== RUN (all derivatives, dependency-sorted) ====="
+echo "===== RUN classical, 1 file/dataset, on the shared BIDS ====="
 neurodags --log-level INFO --log-file "$JSONL" \
-  run "$PIPE" -d "$DS" --n-jobs "${SLURM_CPUS_PER_TASK}"
+  run "$PIPE" -d "$DS" --max-files-per-dataset 1 "${RUN_ARGS[@]}" --n-jobs "${SLURM_CPUS_PER_TASK}"
 
 echo "===== dataframe (wide) ====="
-neurodags --log-level WARNING dataframe "$PIPE" -d "$DS" \
-  --format wide --output "outputs/feats_wide_smoke.csv" --n-jobs "${SLURM_CPUS_PER_TASK}"
+neurodags --log-level WARNING dataframe "$PIPE" -d "$DS" --max-files-per-dataset 1 \
+  "${DF_ARGS[@]}" --format wide --output "outputs/feats_wide_smoke.csv" --n-jobs "${SLURM_CPUS_PER_TASK}"
 
 echo "===== bridge -> coco-pipe aggregate columns ====="
-python to_cocopipe_columns.py outputs/feats_wide_smoke.csv "outputs/aggregate_smoke_raw.csv"
-
-echo "===== status (after) ====="
-neurodags --log-level WARNING status "$PIPE" -d "$DS"
+python to_cocopipe_columns.py outputs/feats_wide_smoke.csv "outputs/aggregate_smoke_raw.csv" || true
 
 echo "===== DONE ${SLURM_JOB_ID} ====="
