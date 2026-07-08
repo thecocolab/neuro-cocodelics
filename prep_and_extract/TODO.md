@@ -77,6 +77,20 @@ Scripts: `bidsification/MEG_{ketamine,perampanel,psilocybin,tiagabine}/1bidsifyi
 (CTF `.ds`, incl the Jordan-Venkatesh ID corrections). Source of truth for raw data is now
 `/home/yorguin/projects/def-kjerbi/data/MEG_*` (see memory `cocodelics-data-sources`).
 
+**STATUS — RAN successfully on fir 2026-07-08 (all 5 datasets).** Output:
+`/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/bids/MEG_<D>` — ketamine 36/18,
+perampanel 40/20, psilocybin 30/15, tiagabine 30/15, LSD 226/19 (6 tasks × 2 ses).
+Two deviations from the original plan, forced by real perms:
+- Output is under a `bids/` subdir (not `neuro-cocodelics/MEG_<D>`): hamza97 owns those per-dataset
+  dirs (group r-x), but `shared/neuro-cocodelics/` itself is group-writable.
+- LSD source = `scratch/datasets/cocodelics/MEG_LSDV2/meg_data` (NOT /project): the /project
+  `MEG_LSD` raw `.ds` are `drwx--S--- jobyrne` (~90% unreadable to yorguin). **Follow-up:
+  PI/jobyrne `chmod -R g+rX /project/def-kjerbi/data/MEG_LSD` to use /project as LSD source.**
+Remaining: point the neurodags feature pipeline (`neurodags/datasets_cocodelics.yml`) at this
+new shared BIDS; cosmetic script cleanup (dead docstring, `main()` guard). Cluster gotchas hit:
+arch-specific wheelhouse numpy (→ install PyPI numpy first) + a bad node fc30557/cold-scratch-read
+venv import flakiness (→ pin/retry).
+
 **Output location DECIDED:** BIDS → `/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/MEG_<D>`
 — the lab's real shared project dir (owner hamza97, group def-kjerbi, group-writable, already holds
 bidsified `EEG_DMT/sub-*`, `MEG_LSD/`, `MEG_ketamine/`, `test/`). Matches the existing `EEG_DMT`
