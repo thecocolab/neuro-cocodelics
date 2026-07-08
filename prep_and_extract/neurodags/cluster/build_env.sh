@@ -26,12 +26,22 @@ for w in "${WHEELHOUSE[@]}"; do FL+=(--find-links "$w"); done
 echo "Creating venv at $ENV (python: $(which python))"
 uv venv "$ENV" --python "$(which python)"
 
-# Sci-stack from wheelhouse (via --find-links), the 3 pure-python packages from PyPI.
+# Sci-stack from wheelhouse (via --find-links) + neurokit2/fooof from PyPI.
+# NOTE: neurodags itself is installed from a git checkout below (editable), NOT here —
+# the PyPI release (0.2.1) has an older CLI than what this pipeline targets.
 uv pip install --python "$ENV/bin/python" --only-binary :all: "${FL[@]}" \
-  neurodags neurokit2 fooof \
+  neurokit2 fooof \
   mne mne-bids antropy xarray h5netcdf \
   numpy scipy pandas scikit-learn matplotlib \
   structlog pydantic joblib tqdm pyyaml
+
+# neurodags: git checkout + EDITABLE install, so `git pull` on the cluster updates it
+# instantly (pure python, no reinstall). Public repo -> HTTPS clone needs no auth.
+NRD=/scratch/${USER}/neurodags
+if [ ! -d "$NRD/.git" ]; then
+  git clone https://github.com/yjmantilla/neurodags.git "$NRD"
+fi
+uv pip install --python "$ENV/bin/python" --no-deps -e "$NRD"
 
 # netCDF4 must come from PyPI, NOT the wheelhouse: the +computecanada netCDF4 is
 # MPI-linked and imports mpi4py, which only exists on the cvmfs PYTHONPATH. The job

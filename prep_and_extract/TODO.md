@@ -23,11 +23,40 @@ derivative + epoch aggregation in `pipeline_cocodelics.yml`, mirroring the class
 ## 2. Parity check of the classical battery vs old coco-pipe derivatives
 
 Compare `derivatives_neurodags/` against the reference `derivatives/features@prepDur30Ov20/`:
+- **channel selection + naming — CONFIRMED BROKEN by the smoke run (job 47578952), fix first.**
+  The pipeline computes on ALL channels in the `.fif`, so the aggregate had 612 "sensors"
+  incl 68 non-MEG (`BG/BP/BR` ref coils, `EEG057-059`, `UPPT` trigger, `SCLK` clock, `HLC`),
+  and every one of 7956 feature cols had a NaN (78k cells) because CTF names carry a varying
+  `-<runid>` suffix (`-3305`, `-177`, `-4408`) so the same sensor mis-aligns across datasets.
+  Fix (before any parity work): in preprocessing (a) pick MEG data channels only
+  (`pick_types(meg=True, ref_meg=False)` / the ~271 CTF mags), and (b) strip the `-<runid>`
+  suffix so names are clean `MLC11` etc. `viz/plot_functions.py` already does
+  `rename_channels(lambda x: x.replace("-3305",""))` — mirror that. Likely needs a small custom
+  node (basic_preprocessing has no pick/rename) or fixing it at the bidsification step.
 - **normalization**: antropy `spectral_entropy` / `lziv_complexity` default to un-normalized;
   confirm whether coco-pipe normalized and add `normalize: true` to those node args if so.
-- **channel selection**: neurodags pipeline computes on ALL channels in the `.fif`; coco-pipe
-  likely used the ~271 CTF magnetometers only. Add a `keep_channels`/MEG-pick step if strict.
 - **higuchi `kmax`, perm/svd order & delay**: antropy defaults — match to coco-pipe if needed.
+
+## 2b. FIF split-file handling (latent bug — neurodags does NOT handle it)
+
+MNE can only write ~2 GB per `.fif`; larger recordings split into
+`..._split-01_meg.fif` (entry point, carries a `next_fname` pointer) + `..._split-02_meg.fif` …
+Reading `-01` auto-loads the rest. A plain scanner sees `-02+` as standalone files.
+
+- **neurodags exposure:** `iterators.get_files_from_pattern` is a bare `glob.glob(**/*_meg.fif)`
+  with a single optional `exclude_filter` glob — **no split awareness**. So `_split-02+` WOULD be
+  picked up as independent source files → duplicate/partial-data feature rows.
+- **Current status:** NOT triggered — 0 split files in any cocodelics BIDS dir on scratch
+  (all recordings stayed under 2 GB). Latent; any future >2 GB bidsified file trips it.
+- **Old r2c handling (trace):** `data/split_csv.py` drops rows whose filepath contains
+  `split-02|split-03` and strips `_split-01` — a downstream aggregate cleanup (wasteful: `-02`
+  features were already computed; only covers up to `-03`). NOT in `code/psychostimulants`.
+- **Fix (preferred):** teach the neurodags scanner to drop split *continuations* generically —
+  after glob, filter filenames whose split index ≥ 2 (BIDS `_split-DD`, and mne's plain
+  `name-1.fif`/`-2.fif`), keeping `-01`/non-split. It's yjmantilla's repo → do it there (with a
+  test); benefits every project. **Short-term defensive:** set per-dataset `exclude_pattern`
+  (absolute glob, e.g. `.../MEG_<D>/**/*_split-0[2-9]_meg.fif`) once/if splits appear — note the
+  single-glob limitation misses `_split-10+` (>18 GB, implausible here).
 
 ## 3. Make the bidsification scripts reproducible from the shared /project source
 
