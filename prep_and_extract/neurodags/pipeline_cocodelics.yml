@@ -1,0 +1,322 @@
+# cocodelics feature extraction — neurodags port of the coco-pipe r2c pipeline.
+#
+# Reproduces coco-pipe's `features@prepDur30Ov20` classical-complexity battery
+# (the feature set the downstream ML actually consumes) using neurodags built-in
+# nodes only — no custom nodes required.
+#
+# prepare() parity (from r2c redefinitions_cocosprint.py:1010):
+#   notch [50,100,150] Hz -> bandpass 0.1-150 Hz -> epoch 30s/20s-overlap -> resample 600 Hz
+#   (neurodags basic_preprocessing applies these in the same order.)
+#
+# Two derivative tiers:
+#   Ep_*            per-epoch feature, dims (epochs, channels[, ...]); cached, not in dataframe.
+#   *MeanEpochs /   epoch-aggregated scalar-per-channel; for_dataframe: True -> these become
+#   *SDEpochs /       the columns of `neurodags dataframe`.
+#   *VarEpochs
+#
+# Column naming: neurodags emits `<DerivName>@channels-<sensor>`. To feed the existing
+# ML (run_ml.py expects `feature-<f>.spaces-<sensor>`), either set run_ml `sep: "@channels-"`,
+# `reverse: false` OR run `to_cocopipe_columns.py` on the output CSV. See README.
+
+datasets: datasets_cocodelics.yml
+mount_point: fir          # override with `-d`/edit for local; use `local` for a local mirror
+new_definitions: null     # classical battery = built-in nodes only
+
+n_jobs: 1                 # per-file parallelism; on cluster prefer slurm arrays (see README)
+joblib_backend: loky
+joblib_prefer: processes
+
+DerivativeDefinitions:
+
+  # ----- Preprocessing (coco-pipe prepDur30Ov20) --------------------------------
+  PrepDur30Ov20:
+    overwrite: False
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: SourceFile
+      - id: 1
+        node: basic_preprocessing
+        args:
+          mne_object: id.0
+          notch_filter:
+            freqs: [50, 100, 150]     # NOTE: r2c prepare() hardcodes 50/100/150 even though
+                                      # datasets_cocosprint.yml lists PowerLineFrequency=60.
+                                      # Kept 50/100/150 to match the materialized derivatives.
+          filter_args:
+            l_freq: 0.1
+            h_freq: 150
+          epoch_config:
+            duration: 30.0
+            overlap: 20.0
+          resample: 600
+          extra_artifacts: False
+
+  # ===== Per-epoch features (intermediate, cached) ==============================
+  # xarray view of the epoched prep (dims: epochs, spaces, times). Needed because
+  # `binarize_with_median` only reads an xarray/.nc, not an MNE .fif — so we
+  # materialize the conversion as its own cached derivative and feed its .nc in.
+  Ep_XarrayEpochs:
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PrepDur30Ov20.fif
+      - id: 1
+        node: meeg_to_xarray
+        args: {mne_object: id.0}
+
+  Ep_LZivComplexity:
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: Ep_XarrayEpochs.nc      # .nc path -> binarize can open it
+      - id: 1
+        node: binarize_with_median
+        args: {data: id.0, dim: 'times'}
+      - id: 2
+        node: antropy_lziv_complexity
+        args: {data_like: id.1, dim: 'times'}
+
+  Ep_HiguchiFD:
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PrepDur30Ov20.fif
+      - id: 1
+        node: antropy_higuchi_fd
+        args: {data_like: id.0, dim: 'times'}
+
+  Ep_KatzFD:
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PrepDur30Ov20.fif
+      - id: 1
+        node: antropy_katz_fd
+        args: {data_like: id.0, dim: 'times'}
+
+  Ep_PetrosianFD:
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PrepDur30Ov20.fif
+      - id: 1
+        node: antropy_petrosian_fd
+        args: {data_like: id.0, dim: 'times'}
+
+  Ep_SVDEntropy:
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PrepDur30Ov20.fif
+      - id: 1
+        node: antropy_svd_entropy
+        args: {data_like: id.0, dim: 'times'}
+
+  Ep_NumZeroCross:
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PrepDur30Ov20.fif
+      - id: 1
+        node: antropy_num_zerocross
+        args: {data_like: id.0, dim: 'times'}
+
+  Ep_PermEntropy:
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PrepDur30Ov20.fif
+      - id: 1
+        node: antropy_perm_entropy
+        args: {data_like: id.0, dim: 'times'}
+
+  Ep_SpectralEntropy:
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PrepDur30Ov20.fif
+      - id: 1
+        node: antropy_spectral_entropy
+        args: {data_like: id.0, dim: 'times', sf: 600.0}
+
+  Ep_HjorthParams:
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PrepDur30Ov20.fif
+      - id: 1
+        node: antropy_hjorth_params
+        args: {data_like: id.0, dim: 'times'}   # -> result dim 'hjorthComponents' = [mobility, complexity]
+
+  Ep_DetrendedFluctuation:
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PrepDur30Ov20.fif
+      - id: 1
+        node: antropy_detrended_fluctuation
+        args: {data_like: id.0, dim: 'times'}
+
+  # ===== Epoch aggregation -> dataframe features ================================
+  lzivComplexityMeanEpochs:
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_LZivComplexity.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
+
+  higuchiFdMeanEpochs:
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_HiguchiFD.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
+
+  higuchiFdVarEpochs:
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_HiguchiFD.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'var'}
+
+  katzFdMeanEpochs:
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_KatzFD.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
+
+  katzFdSDEpochs:
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_KatzFD.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'std'}
+
+  petrosianFdMeanEpochs:
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_PetrosianFD.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
+
+  svdEntropyMeanEpochs:
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_SVDEntropy.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
+
+  numZerocrossMeanEpochs:
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_NumZeroCross.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
+
+  permEntropyMeanEpochs:
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_PermEntropy.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
+
+  spectralEntropyMeanEpochs:
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_SpectralEntropy.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
+
+  # hjorth mobility + complexity together (dims: channels x hjorthComponents).
+  # Flattens to `hjorthMeanEpochs@channels-<S>_hjorthComponents-mobility` etc.
+  hjorthMeanEpochs:
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_HjorthParams.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
+
+  detrendedFluctuationMeanEpochs:
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_DetrendedFluctuation.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
+
+DerivativeList:
+  - PrepDur30Ov20
+  # per-epoch intermediates
+  - Ep_XarrayEpochs
+  - Ep_LZivComplexity
+  - Ep_HiguchiFD
+  - Ep_KatzFD
+  - Ep_PetrosianFD
+  - Ep_SVDEntropy
+  - Ep_NumZeroCross
+  - Ep_PermEntropy
+  - Ep_SpectralEntropy
+  - Ep_HjorthParams
+  - Ep_DetrendedFluctuation
+  # dataframe features
+  - lzivComplexityMeanEpochs
+  - higuchiFdMeanEpochs
+  - higuchiFdVarEpochs
+  - katzFdMeanEpochs
+  - katzFdSDEpochs
+  - petrosianFdMeanEpochs
+  - svdEntropyMeanEpochs
+  - numZerocrossMeanEpochs
+  - permEntropyMeanEpochs
+  - spectralEntropyMeanEpochs
+  - hjorthMeanEpochs
+  - detrendedFluctuationMeanEpochs

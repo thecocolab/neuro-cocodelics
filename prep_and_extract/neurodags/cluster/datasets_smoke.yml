@@ -1,0 +1,41 @@
+# Smoke-test datasets override: ONE subject per dataset (all its sessions/tasks).
+# Chosen subjects (first per dataset on fir, 2026-07-08):
+#   lsd=sub-S10SM (12 files: 6 tasks x 2 ses) | ketamine=sub-S021013N51 |
+#   perampanel=sub-S020414N50 | psilocybin=sub-S010312N1 | tiagabine=sub-S030709N2
+# Writes to the real derivatives_neurodags/ (incremental: a later full run just
+# adds the remaining subjects; neurodags skips cached ones).
+
+lsd:
+  name: MEG_LSD
+  file_pattern:
+    fir: "/home/yorguin/scratch/datasets/cocodelics/MEG_LSDV2/meg_data_BIDS/sub-S10SM/**/*_meg.fif"
+  derivatives_path:
+    fir: "/home/yorguin/scratch/datasets/cocodelics/MEG_LSDV2/derivatives_neurodags"
+
+ketamine:
+  name: MEG_ketamine
+  file_pattern:
+    fir: "/home/yorguin/scratch/datasets/cocodelics/MEG_ketamine/meg_data_BIDS/sub-S021013N51/**/*_meg.fif"
+  derivatives_path:
+    fir: "/home/yorguin/scratch/datasets/cocodelics/MEG_ketamine/derivatives_neurodags"
+
+perampanel:
+  name: MEG_perampanel
+  file_pattern:
+    fir: "/home/yorguin/scratch/datasets/cocodelics/MEG_perampanel/meg_data_BIDS/sub-S020414N50/**/*_meg.fif"
+  derivatives_path:
+    fir: "/home/yorguin/scratch/datasets/cocodelics/MEG_perampanel/derivatives_neurodags"
+
+psilocybin:
+  name: MEG_psilocybin
+  file_pattern:
+    fir: "/home/yorguin/scratch/datasets/cocodelics/MEG_psilocybin/bids/sub-S010312N1/**/*_meg.fif"
+  derivatives_path:
+    fir: "/home/yorguin/scratch/datasets/cocodelics/MEG_psilocybin/derivatives_neurodags"
+
+tiagabine:
+  name: MEG_tiagabine
+  file_pattern:
+    fir: "/home/yorguin/scratch/datasets/cocodelics/MEG_tiagabine/meg_data_BIDS/sub-S030709N2/**/*_meg.fif"
+  derivatives_path:
+    fir: "/home/yorguin/scratch/datasets/cocodelics/MEG_tiagabine/derivatives_neurodags"
