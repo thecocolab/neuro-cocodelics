@@ -20,7 +20,7 @@
 
 datasets: datasets_cocodelics.yml
 mount_point: fir          # override with `-d`/edit for local; use `local` for a local mirror
-new_definitions: null     # classical battery = built-in nodes only
+new_definitions: custom_nodes.py   # pick_meg_clean_names (CTF sensor pick + name cleanup)
 
 n_jobs: 1                 # per-file parallelism; on cluster prefer slurm arrays (see README)
 joblib_backend: loky
@@ -37,9 +37,13 @@ DerivativeDefinitions:
       - id: 0
         derivative: SourceFile
       - id: 1
-        node: basic_preprocessing
+        node: pick_meg_clean_names       # keep CTF MEG sensors only + strip -<runid> suffix
         args:
           mne_object: id.0
+      - id: 2
+        node: basic_preprocessing
+        args:
+          mne_object: id.1
           notch_filter:
             freqs: [50, 100, 150]     # NOTE: r2c prepare() hardcodes 50/100/150 even though
                                       # datasets_cocosprint.yml lists PowerLineFrequency=60.

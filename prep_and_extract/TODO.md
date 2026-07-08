@@ -23,16 +23,15 @@ derivative + epoch aggregation in `pipeline_cocodelics.yml`, mirroring the class
 ## 2. Parity check of the classical battery vs old coco-pipe derivatives
 
 Compare `derivatives_neurodags/` against the reference `derivatives/features@prepDur30Ov20/`:
-- **channel selection + naming — CONFIRMED BROKEN by the smoke run (job 47578952), fix first.**
-  The pipeline computes on ALL channels in the `.fif`, so the aggregate had 612 "sensors"
-  incl 68 non-MEG (`BG/BP/BR` ref coils, `EEG057-059`, `UPPT` trigger, `SCLK` clock, `HLC`),
-  and every one of 7956 feature cols had a NaN (78k cells) because CTF names carry a varying
-  `-<runid>` suffix (`-3305`, `-177`, `-4408`) so the same sensor mis-aligns across datasets.
-  Fix (before any parity work): in preprocessing (a) pick MEG data channels only
-  (`pick_types(meg=True, ref_meg=False)` / the ~271 CTF mags), and (b) strip the `-<runid>`
-  suffix so names are clean `MLC11` etc. `viz/plot_functions.py` already does
-  `rename_channels(lambda x: x.replace("-3305",""))` — mirror that. Likely needs a small custom
-  node (basic_preprocessing has no pick/rename) or fixing it at the bidsification step.
+- **channel selection + naming — FIXED (custom_nodes.py `pick_meg_clean_names`, 2026-07-08).**
+  Smoke job 47578952 had computed on ALL channels → 612 "sensors" incl 68 non-MEG (`BG/BP/BR`
+  ref coils, `EEG*`, `UPPT` trigger, `SCLK` clock, `HLC`), and all 7956 feature cols had NaNs
+  (78k cells) from the varying CTF `-<runid>` suffix mis-aligning sensors across datasets.
+  Fix: new custom node picks CTF sensors by name (`^M[LRZ][A-Z]`, since types were mistyped)
+  and strips the `-<runid>` suffix; wired as step 1 of `PrepDur30Ov20` (before basic_preprocessing).
+  Validated locally end-to-end on junk+suffix synthetic data → only clean MEG sensors, 0 NaN.
+  REMAINING: re-run on the cluster with `overwrite: True` (the existing `derivatives_neurodags/`
+  from the smoke were computed on the pre-fix prep and are junk-contaminated).
 - **normalization**: antropy `spectral_entropy` / `lziv_complexity` default to un-normalized;
   confirm whether coco-pipe normalized and add `normalize: true` to those node args if so.
 - **higuchi `kmax`, perm/svd order & delay**: antropy defaults — match to coco-pipe if needed.
