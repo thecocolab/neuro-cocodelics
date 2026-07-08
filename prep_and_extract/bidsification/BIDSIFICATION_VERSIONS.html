@@ -81,17 +81,17 @@ coverage, and one leftover debugging bug.</p>
 </tr>
 <tr>
   <td><b>V3</b> <span class="tag pipe">pipeline</span></td>
-  <td><code>…/r2c_project/redefinitions_cocosprint.py</code><br><span class="mono-sm">(identical in both repos, 1053 lines)</span></td>
+  <td><code>…/legacy/r2c_project/redefinitions_cocosprint.py</code><br><span class="mono-sm">(identical in both repos, 1053 lines)</span></td>
   <td>Functions injected into coco-pipe via <code>redefine_bidsify</code></td>
   <td>LSD, perampanel, psilocybin <b>only</b></td>
-  <td>Pipeline path. Has open bug + coverage gap.</td>
+  <td><b>Retired</b> to <code>legacy/</code> (2026-07-08). Reference only.</td>
 </tr>
 </tbody>
 </table>
 </div>
 <p class="sub">The r2c <code>redefinitions_cocosprint.py</code> is byte-identical between the two repos.
 V1 and V2 differ for every dataset script (see §3). An existing narrative comparison of
-V2-standalone vs V3-pipeline lives at <code>r2c_project/BIDSIFICATION_COMPARISON.md</code>.</p>
+V2-standalone vs V3-pipeline lives at <code>legacy/r2c_project/BIDSIFICATION_COMPARISON.md</code>.</p>
 
 <h2>2. Per-dataset coverage</h2>
 <div class="scroll">
@@ -160,17 +160,24 @@ those two datasets will be skipped.
 <li><b>The 413 raw LSD <code>.ds</code></b> include MMN and other non-study tasks; the correction logic filters to the 6 study tasks (Closed1/2, Open1/2, Music, Video).</li>
 </ul>
 
-<h2>6. Recommendation</h2>
+<h2>6. Recommendation — consolidated 2026-07-08</h2>
+<div class="callout">
+<b>✔ Done:</b> <b>V2</b> is now the single bidsification strategy. The whole coco-pipe
+<code>r2c_project/</code> (incl the V3 <code>redefinitions_cocosprint.py</code> bidsify) was moved to
+<code>prep_and_extract/legacy/r2c_project/</code> — deprecated, kept only for feature-parity
+reference (see <code>legacy/README.md</code>). This removes the live duplication of the
+~300-line LSD correction logic.
+</div>
 <ul>
-<li>Treat <b>V2</b> (<code>neuro-cocodelics/prep_and_extract/bidsification/</code>) as the source of truth — per-dataset, reproducible, sourced from shared <code>/project</code>, idempotent, full 5-dataset coverage.</li>
-<li>Treat <b>V1</b> as history; consider archiving the old <code>cocodelics</code> repo.</li>
-<li>Before ever running <b>V3</b> in the pipeline: remove the <code>breakpoint()</code> and port ketamine/tiagabine — or keep bidsification as the standalone V2 stage and let the pipeline consume its BIDS output.</li>
+<li><b>V2</b> (<code>neuro-cocodelics/prep_and_extract/bidsification/</code>) is the source of truth — per-dataset, reproducible, sourced from shared <code>/project</code>, idempotent, full 5-dataset coverage.</li>
+<li><b>V1</b> (old <code>cocodelics</code> repo) is history — <b>TODO:</b> archive the GitHub repo (manual) and/or add a deprecation note to its README.</li>
+<li><b>V3</b> retired to <code>legacy/</code>. If the coco-pipe path is ever revived, it still needs the <code>breakpoint()</code> removed and ketamine/tiagabine added — but the plan is to consume V2's BIDS output from neurodags instead.</li>
 <li>Still pending on V2 (see <code>prep_and_extract/TODO.md §3</code>): a cluster test-run, verifying the LSD corrections against the <code>/project</code> tree, and minor cleanup (dead docstring, <code>main()</code> guard).</li>
 </ul>
 
 <p class="foot">Sources: diff of <code>cocodelics/bidsification</code> ↔ <code>neuro-cocodelics/prep_and_extract/bidsification</code>;
 <code>redefinitions_cocosprint.py</code> (1053 lines, identical across repos);
-<code>r2c_project/{REPORT,BIDSIFICATION_COMPARISON}.md</code>; cluster raw-data survey on <code>fir</code>.
+<code>legacy/r2c_project/{REPORT,BIDSIFICATION_COMPARISON}.md</code>; cluster raw-data survey on <code>fir</code>.
 Verify specifics against the code — paths and coverage drift.</p>
 
 </div>

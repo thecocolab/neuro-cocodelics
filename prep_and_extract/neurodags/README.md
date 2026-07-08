@@ -2,7 +2,7 @@
 
 This directory reimplements cocodelics **feature extraction** on top of
 [neurodags](https://github.com/yjmantilla/neurodags) — a declarative DAG framework
-for M/EEG derivatives — replacing the coco-pipe `r2c_project` feature stage.
+for M/EEG derivatives — replacing the coco-pipe `legacy/r2c_project` feature stage.
 
 Scope: the **classical complexity/entropy battery** (the feature set the downstream
 ML actually consumes). This maps 1:1 onto neurodags **built-in nodes** — no custom
@@ -19,7 +19,7 @@ features are intentionally **out of scope** here (they would need custom nodes).
 
 ## What it computes
 
-`prepare()` parity with `../r2c_project/redefinitions_cocosprint.py`:
+`prepare()` parity with `../legacy/r2c_project/redefinitions_cocosprint.py`:
 **notch [50,100,150] Hz → bandpass 0.1–150 Hz → epoch 30 s / 20 s-overlap → resample 600 Hz**
 (the `PrepDur30Ov20` derivative). Then, per 30 s epoch, per sensor:
 

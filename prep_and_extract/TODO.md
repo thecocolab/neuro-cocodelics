@@ -4,7 +4,7 @@
 
 The neurodags reimplementation (`neurodags/`) currently ports **only the classical
 complexity battery** (antropy/spectral built-in nodes). The old coco-pipe pipeline
-(`r2c_project/pipeline_cocosprint{,2}.yml`, see `r2c_project/REPORT.md`) also computed
+(`legacy/r2c_project/pipeline_cocosprint{,2}.yml`, see `legacy/r2c_project/REPORT.md`) also computed
 "scientific" features that are **not yet reimplemented**. Add them as neurodags custom
 nodes (`new_definitions.py`):
 
