@@ -169,8 +169,15 @@ def meg_spectrum_fig(
     sf = float(raw.info["sfreq"])
     if fmax is None:
         fmax = min(120.0, sf / 2.0 - 1.0)
-    psd = raw.compute_psd(method=method, fmin=fmin, fmax=fmax, verbose="error")
-    psds, freqs = psd.get_data(return_freqs=True)
+    # Pick MEG sensors by NAME (^M[LRZ][A-Z]) + force compute_psd to use them regardless of
+    # channel *type* — some FieldTrip-bidsified data mis-types MEG channels as 'misc', which the
+    # default (data-type) picking would drop, showing far too few channels.
+    meg_picks = [c for c in raw.ch_names if re.match(r"^M[LRZ][A-Z]", c)]
+    psd = raw.compute_psd(
+        method=method, fmin=fmin, fmax=fmax,
+        picks=(meg_picks if meg_picks else "data"), verbose="error",
+    )
+    psds, freqs = psd.get_data(picks="all", return_freqs=True)  # 'all' -> not dropped by type
     if psds.ndim == 3:  # Epochs input: (n_epochs, n_channels, n_freqs) -> average over epochs
         psds = psds.mean(axis=0)
     mean_psd = psds.mean(axis=0)  # -> mean across channels

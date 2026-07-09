@@ -31,7 +31,7 @@ lsd:
 
   # Processing
   ch_names: None
-  PowerLineFrequency : 60
+  PowerLineFrequency : 50  # corrected 2026-07-09: RawMegSpectrum QC shows 50 Hz mains, not 60
   # BIDS
   bids_root : 
     computecanada: "/home/yorguin/scratch/data/MEG_LSDV2/meg_data_BIDS/"
@@ -79,7 +79,7 @@ perampanel:
   example_file: 
     computecanada: "/home/yorguin/scratch/data/MEG_perampanel/meg_data_BIDS/sub-*/ses-*/meg/sub-*_ses-*_task-*_meg.fif"
   ch_names: None
-  PowerLineFrequency : 60
+  PowerLineFrequency : 50  # corrected 2026-07-09: RawMegSpectrum QC shows 50 Hz mains, not 60
   # BIDS
   bids_root : 
     computecanada: "/home/yorguin/scratch/data/MEG_perampanel/meg_data_BIDS/"
@@ -126,7 +126,7 @@ psilocybin:
   example_file: 
     computecanada: "/home/yorguin/scratch/data/MEG_psilocybin/bids/sub-*/ses-*/meg/sub-*_ses-*_task-*_meg.fif"
   ch_names: None
-  PowerLineFrequency : 60
+  PowerLineFrequency : 50  # corrected 2026-07-09: RawMegSpectrum QC shows 50 Hz mains, not 60
   # BIDS
   bids_root : 
     computecanada: "/home/yorguin/scratch/data/MEG_psilocybin/bids/"
@@ -163,7 +163,7 @@ ketamine:
   example_file: 
     computecanada: "/home/yorguin/scratch/data/MEG_ketamine/meg_data_BIDS/sub-*/ses-*/meg/sub-*_ses-*_task-*_meg.fif"
   ch_names: None
-  PowerLineFrequency : 60
+  PowerLineFrequency : 50  # corrected 2026-07-09: RawMegSpectrum QC shows 50 Hz mains, not 60
   # BIDS
   bids_root : 
     computecanada: "/home/yorguin/scratch/data/MEG_ketamine/meg_data_BIDS/"
@@ -198,7 +198,7 @@ tiagabine:
   example_file: 
     computecanada: "/home/yorguin/scratch/data/MEG_tiagabine/meg_data_BIDS/sub-*/ses-*/meg/sub-*_ses-*_task-*_meg.fif"
   ch_names: None
-  PowerLineFrequency : 60
+  PowerLineFrequency : 50  # corrected 2026-07-09: RawMegSpectrum QC shows 50 Hz mains, not 60
   # BIDS
   bids_root : 
     computecanada: "/home/yorguin/scratch/data/MEG_tiagabine/meg_data_BIDS/"

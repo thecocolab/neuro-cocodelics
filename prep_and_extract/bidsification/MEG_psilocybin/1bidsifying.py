@@ -199,7 +199,12 @@ for i, row in df_bids.iterrows():
 
 
         ch_names = meg_data['data']['label'].tolist()
-        types = [chantype_map.get(ch, 'misc') for ch in ch_names]  # Default to 'misc' if not found
+        # CTF sensors are named M[LRZ]<region>… (e.g. MLC11) -> type them as MEG ('mag';
+        # CTF axial gradiometers), anything else as 'misc'. (The old code mapped channel
+        # NAMES against a type-keyed dict -> everything 'misc', then set_channel_types on a
+        # 4-item list zipped with 272 names -> only 4 channels ended up MEG-typed.)
+        import re as _re
+        types = ['mag' if _re.match(r'^M[LRZ][A-Z]', ch) else 'misc' for ch in ch_names]
         chantypes = ['meggrad', 'meggrad', 'refmag', 'refgrad']
         mne_types = [chantype_map.get(t, 'misc') for t in chantypes]
 
@@ -236,7 +241,7 @@ for i, row in df_bids.iterrows():
         print(f"Cropping: InfusionStop={infusion_sec:.2f}s, RestStop={rest_sec:.2f}s, delta={rest_sec - infusion_sec:.2f}s")
         raw = raw.crop(tmin=infusion_sec, tmax=rest_sec, include_tmax=True)
 
-        raw.set_channel_types(ch_type_dict)
+        # channel types already set correctly in create_info(ch_types=types) above
 
         subject = row['label']
         session = row['session_bids']
