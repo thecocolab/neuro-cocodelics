@@ -113,3 +113,22 @@ STILL TODO:
 - **Repoint the feature pipeline** (`neurodags/datasets_cocodelics.yml`) to the new rrg BIDS
   root once bidsification has actually written there (currently it reads the scratch `bids`).
 - Add a short run-order README (LSD = 3 steps: download → prepare → bidsify; others = 1 step).
+
+## 4. Preprocessing roadmap (settle prep, then a dedicated DFA window)
+
+Current prep (`PrepDur30Ov20`): pick MEG sensors + clean names → notch [50,100,150] → bandpass
+0.1–150 → epoch 30 s / 20 s-overlap → resample 600 Hz. Improvements to land:
+
+- **Line-noise: ZapLine instead of the fixed notch.** Use `mne-denoise` (ZapLine / ZapLine-plus,
+  `line_freq=None` auto-detect) so line noise (50 vs 60 Hz — currently hardcoded 50/100/150,
+  contradicts the `PowerLineFrequency=60` in the datasets yml) is removed adaptively per dataset
+  and the signal is better preserved than a notch. Add as a custom node replacing `notch_filter`.
+- **Raw-spectrum QC figure.** A node that computes the PSD on the RAW (after MEG-pick, before
+  filtering), averages across MEG channels, and saves a `.png` figure artifact — lets us visually
+  confirm the true line frequency + data quality per dataset/subject before trusting the prep.
+- **THEN — dedicated longer window for DFA (do AFTER the prep above is settled).** DFA is
+  window-sensitive (see the DFA discussion): 30 s is short. Plan: (1) once prep is final, measure
+  the max feasible epoch/window length **per dataset** (recording durations differ — resting vs
+  LSD tasks); (2) pick a **common window across datasets** (the min of the per-dataset maxima, or
+  a principled value) so DFA is comparable; (3) add a separate prep (e.g. `prepSingleEpoch` or a
+  `prepDurNNN`) feeding only the DFA node, leaving the 30 s prep for the rest of the battery.
