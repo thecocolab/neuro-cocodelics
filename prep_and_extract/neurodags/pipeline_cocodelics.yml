@@ -30,26 +30,51 @@ joblib_prefer: processes
 
 DerivativeDefinitions:
 
-  # ----- Preprocessing (coco-pipe prepDur30Ov20) --------------------------------
+  # ----- MEG pick + clean names (shared raw for the QC figure + the prep) -------
+  PickedRaw:
+    overwrite: False
+    save: True                         # persisted so RawMegSpectrum + PrepDur30Ov20 can read it
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: SourceFile
+      - id: 1
+        node: pick_meg_clean_names     # keep CTF MEG sensors only + strip -<runid> suffix
+        args: {mne_object: id.0, save: True}
+
+  # ----- QC: raw MEG spectrum figure (BEFORE denoise/filter) --------------------
+  # A .png inspection artifact — mean PSD across MEG channels, 50/60 Hz marked — to
+  # eyeball the true line frequency + data quality per subject before trusting the prep.
+  RawMegSpectrum:
+    overwrite: False
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PickedRaw.fif
+      - id: 1
+        node: meg_spectrum_fig
+        args: {mne_object: id.0, title: "Raw MEG spectrum (pre-denoise)"}
+
+  # ----- Preprocessing: ZapLine line-noise -> bandpass -> epoch -> resample ------
+  # ZapLine (mne-denoise) replaces the notch: removes the 60 Hz line component (+harmonics)
+  # via DSS while preserving neural signal, instead of a notch. line_freq=60 per the datasets
+  # metadata; confirm against RawMegSpectrum (set adaptive: True for auto 50/60 detection).
   PrepDur30Ov20:
     overwrite: False
     save: True
     for_dataframe: False
     nodes:
       - id: 0
-        derivative: SourceFile
+        derivative: PickedRaw.fif
       - id: 1
-        node: pick_meg_clean_names       # keep CTF MEG sensors only + strip -<runid> suffix
-        args:
-          mne_object: id.0
+        node: zapline_denoise
+        args: {mne_object: id.0, line_freq: 60.0, n_harmonics: 3}
       - id: 2
         node: basic_preprocessing
         args:
           mne_object: id.1
-          notch_filter:
-            freqs: [50, 100, 150]     # NOTE: r2c prepare() hardcodes 50/100/150 even though
-                                      # datasets_cocosprint.yml lists PowerLineFrequency=60.
-                                      # Kept 50/100/150 to match the materialized derivatives.
+          notch_filter: null            # line noise handled by ZapLine above
           filter_args:
             l_freq: 0.1
             h_freq: 150
@@ -58,6 +83,19 @@ DerivativeDefinitions:
             overlap: 20.0
           resample: 600
           extra_artifacts: False
+
+  # ----- QC: post-prep MEG spectrum (after ZapLine + bandpass + resample) --------
+  # Pair with RawMegSpectrum to eyeball the line removal + bandpass shape per subject.
+  PrepSpectrum:
+    overwrite: False
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PrepDur30Ov20.fif
+      - id: 1
+        node: meg_spectrum_fig
+        args: {mne_object: id.0, title: "Prepped MEG spectrum (post ZapLine+bandpass)"}
 
   # ===== Per-epoch features (intermediate, cached) ==============================
   # xarray view of the epoched prep (dims: epochs, spaces, times). Needed because
@@ -499,7 +537,10 @@ DerivativeDefinitions:
         args: {xarray_data: id.0, dim: 'epochs', operation: 'std'}
 
 DerivativeList:
+  - PickedRaw
+  - RawMegSpectrum          # QC figure (.png) — raw
   - PrepDur30Ov20
+  - PrepSpectrum            # QC figure (.png) — post-prep
   # per-epoch intermediates
   - Ep_XarrayEpochs
   - Ep_LZivComplexity

@@ -33,7 +33,7 @@ for w in "${WHEELHOUSE[@]}"; do FL+=(--find-links "$w"); done
 
 # Sci-stack. `sympy` is for the vendored Harmonicity metrics; `neurokit2` for Fisher.
 PKGS=(
-  neurokit2 fooof sympy
+  neurokit2 fooof sympy mne-denoise
   mne mne-bids antropy xarray h5netcdf
   numpy scipy pandas scikit-learn matplotlib
   structlog pydantic joblib tqdm pyyaml

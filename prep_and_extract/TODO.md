@@ -132,3 +132,20 @@ Current prep (`PrepDur30Ov20`): pick MEG sensors + clean names → notch [50,100
   LSD tasks); (2) pick a **common window across datasets** (the min of the per-dataset maxima, or
   a principled value) so DFA is comparable; (3) add a separate prep (e.g. `prepSingleEpoch` or a
   `prepDurNNN`) feeding only the DFA node, leaving the 30 s prep for the rest of the battery.
+
+## 5. Cluster storage — watch BOTH space AND inode (file-count) quotas
+
+Alliance quotas cap **number of files** as well as bytes (e.g. `/project rrg-kjerbi` ~314K/500K
+files, `/scratch` ~1M). The neurodags feature pipeline is inode-heavy: it writes one `.nc` per
+(derivative × source file). Per subject-file the classical chain is ~24 files; ×~362 files ×5
+datasets → ~8–9K `.nc`, plus per-file QC `.png` (RawMegSpectrum + PrepSpectrum), plus the
+experimental phi tier (Ep_Atoms is also **large in bytes** — 36 MB on a tiny synthetic → big on
+271 ch). This can pressure the `/project` inode quota.
+
+Be mindful:
+- Check `diskusage_report` (space + files) before + after big runs.
+- **Worst case: put derivatives on `/scratch/$USER`** (yorguin-owned, ~1M inode budget, purges at
+  60 d — fine for regenerable features) while keeping the durable BIDS on `/project`. i.e. set
+  `datasets_cocodelics.yml` `derivatives_path` → `/scratch/$USER/...` if `/project` inodes get tight.
+- Consider skipping/limiting the byte-heavy experimental `Ep_Atoms` cache (`save: False` or fuse
+  the atoms→metric steps) for full-scale runs.

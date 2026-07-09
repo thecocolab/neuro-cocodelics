@@ -38,7 +38,7 @@ JSONL="logs/run_${SLURM_JOB_ID}.jsonl"
 # the WHOLE classical chain: prep -> per-epoch Ep_* -> aggregates. The dataframe collects only
 # the for_dataframe:True aggregates.
 CLASSICAL_CHAIN=(
-  PrepDur30Ov20 Ep_XarrayEpochs
+  PickedRaw RawMegSpectrum PrepDur30Ov20 PrepSpectrum Ep_XarrayEpochs
   Ep_LZivComplexity Ep_HiguchiFD Ep_KatzFD Ep_PetrosianFD Ep_SVDEntropy
   Ep_NumZeroCross Ep_PermEntropy Ep_SpectralEntropy Ep_HjorthParams Ep_DetrendedFluctuation
   lzivComplexityMeanEpochs higuchiFdMeanEpochs higuchiFdVarEpochs
