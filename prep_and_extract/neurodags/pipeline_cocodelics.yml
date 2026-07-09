@@ -71,7 +71,10 @@ DerivativeDefinitions:
         derivative: PickedRaw.fif
       - id: 1
         node: zapline_denoise
-        args: {mne_object: id.0, line_freq: 50.0, n_harmonics: 3}
+        # adaptive=True -> ZapLine-plus (Klug & Kloosterman 2022): data segmentation + spectral-QA
+        # so it removes only as much as needed (gentler than the plain DSS notch we first saw).
+        # line_freq=50 confirmed by RawMegSpectrum; harmonics auto-detected in adaptive mode.
+        args: {mne_object: id.0, line_freq: 50.0, adaptive: True}
       - id: 2
         node: basic_preprocessing
         args:
