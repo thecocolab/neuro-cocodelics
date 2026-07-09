@@ -57,9 +57,11 @@ DerivativeDefinitions:
         args: {mne_object: id.0, title: "Raw MEG spectrum (pre-denoise)"}
 
   # ----- Preprocessing: ZapLine line-noise -> bandpass -> epoch -> resample ------
-  # ZapLine (mne-denoise) replaces the notch: removes the 60 Hz line component (+harmonics)
-  # via DSS while preserving neural signal, instead of a notch. line_freq=60 per the datasets
-  # metadata; confirm against RawMegSpectrum (set adaptive: True for auto 50/60 detection).
+  # ZapLine (mne-denoise) replaces the notch: removes the line component (+harmonics) via DSS
+  # while preserving neural signal. line_freq=50: the RawMegSpectrum QC figures show a clear 50 Hz
+  # line (+ 100 Hz harmonic, strong in perampanel) and NOTHING at 60 across datasets — i.e. these
+  # are 50 Hz-mains (UK/EU) sites, so the datasets_cocosprint.yml PowerLineFrequency=60 is wrong and
+  # r2c's hardcoded 50/100/150 notch was correct. n_harmonics=3 -> 50/100/150.
   PrepDur30Ov20:
     overwrite: False
     save: True
@@ -69,7 +71,7 @@ DerivativeDefinitions:
         derivative: PickedRaw.fif
       - id: 1
         node: zapline_denoise
-        args: {mne_object: id.0, line_freq: 60.0, n_harmonics: 3}
+        args: {mne_object: id.0, line_freq: 50.0, n_harmonics: 3}
       - id: 2
         node: basic_preprocessing
         args:
