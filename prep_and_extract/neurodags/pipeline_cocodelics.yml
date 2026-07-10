@@ -353,6 +353,78 @@ DerivativeDefinitions:
         node: aggregate_across_dimension
         args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
 
+  # ===== DFA long-window (120 s / 60 s overlap) ================================
+  # DFA (detrended fluctuation) is window-length-sensitive; the 30 s battery epochs
+  # are too short to probe slow (long-memory) dynamics. This SEPARATE prep re-epochs
+  # the SAME denoised+bandpassed raw at 120 s / 60 s-overlap and feeds ONLY the DFA
+  # node — the rest of the battery stays on PrepDur30Ov20.
+  #
+  # Window chosen 2026-07-09 from the per-dataset duration survey (duration_survey.py):
+  # recording lengths are ketamine/perampanel 600 s, tiagabine 300 s, LSD 420-600 s,
+  # psilocybin 244-427 s (cropped Infusion->Rest). Shortest recording = 244 s, so a
+  # window comparable across ALL datasets must be <=244 s. 120 s is ~4x the 30 s scale
+  # range yet fits every dataset with >=2 windows (>=3 with the 60 s overlap on the
+  # short recordings) for within-recording averaging. sfreq stays 600 Hz so DFA box
+  # sizes (in seconds) are comparable across datasets.
+  #
+  # NOTE (perf, full-scale): this recomputes ZapLine (the expensive adaptive step) a
+  # second time per subject. If wall-clock matters at full scale, factor the denoised+
+  # filtered CONTINUOUS raw into its own cached derivative and epoch both preps from it
+  # (trades CPU for one large cached .fif/subject — see TODO.md §4).
+  PrepDur120Ov60:
+    overwrite: False
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PickedRaw.fif
+      - id: 1
+        node: zapline_denoise
+        args: {mne_object: id.0, line_freq: 50.0, adaptive: True, n_harmonics: 2}
+      - id: 2
+        node: basic_preprocessing
+        args:
+          mne_object: id.1
+          notch_filter: null
+          filter_args:
+            l_freq: 0.1
+            h_freq: 150
+          epoch_config:
+            duration: 120.0
+            overlap: 60.0
+          resample: 600
+          extra_artifacts: False
+
+  Ep_DetrendedFluctuationDur120:
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PrepDur120Ov60.fif
+      - id: 1
+        node: antropy_detrended_fluctuation
+        args: {data_like: id.0, dim: 'times'}
+
+  detrendedFluctuationMeanEpochsDur120:
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_DetrendedFluctuationDur120.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
+
+  detrendedFluctuationSDEpochsDur120:      # within-recording variability (meaningful with >=3 windows)
+    save: True
+    for_dataframe: True
+    nodes:
+      - id: 0
+        derivative: Ep_DetrendedFluctuationDur120.nc
+      - id: 1
+        node: aggregate_across_dimension
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'std'}
+
   # ============================================================================
   # ===== EXPERIMENTAL (needs validation) ======================================
   # ============================================================================
@@ -582,6 +654,11 @@ DerivativeList:
   - spectralEntropyMeanEpochs
   - hjorthMeanEpochs
   - detrendedFluctuationMeanEpochs
+  # DFA long-window (120 s / 60 s overlap) — separate prep, feeds only DFA
+  - PrepDur120Ov60
+  - Ep_DetrendedFluctuationDur120
+  - detrendedFluctuationMeanEpochsDur120
+  - detrendedFluctuationSDEpochsDur120
   # ===== EXPERIMENTAL (needs validation) — see experimental_features.py =====
   # per-epoch intermediates
   - Ep_Atoms

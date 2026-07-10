@@ -126,12 +126,23 @@ Current prep (`PrepDur30Ov20`): pick MEG sensors + clean names → notch [50,100
 - **Raw-spectrum QC figure.** A node that computes the PSD on the RAW (after MEG-pick, before
   filtering), averages across MEG channels, and saves a `.png` figure artifact — lets us visually
   confirm the true line frequency + data quality per dataset/subject before trusting the prep.
-- **THEN — dedicated longer window for DFA (do AFTER the prep above is settled).** DFA is
-  window-sensitive (see the DFA discussion): 30 s is short. Plan: (1) once prep is final, measure
-  the max feasible epoch/window length **per dataset** (recording durations differ — resting vs
-  LSD tasks); (2) pick a **common window across datasets** (the min of the per-dataset maxima, or
-  a principled value) so DFA is comparable; (3) add a separate prep (e.g. `prepSingleEpoch` or a
-  `prepDurNNN`) feeding only the DFA node, leaving the 30 s prep for the rest of the battery.
+- **Line-noise + QC — DONE (2026-07-09).** ZapLine settled empirically via an A/B + parameter
+  sweep: **adaptive=True + `n_harmonics=2`** (beat fixed on 50 Hz in all 5 datasets, cleans 100 Hz;
+  removes 335/379 comps, `keep`~0.99). Residual ~3.7-4.8x is inherent (adaptive self-regulates;
+  `adaptive_params` had no effect, standard mode worse). Tooling: `make_zapcompare_pipeline.py`,
+  `sweep_zapline.py`, `analyze_zapcompare.py`. QC figures: `RawMegSpectrum` + `PrepSpectrum` nodes.
+- **DFA longer window — DECIDED (2026-07-09): 120 s / 60 s overlap.** Measured recording durations
+  per dataset (`duration_survey.py`, see `neurodags/RECORDING_DURATIONS.md`): shortest recording
+  244 s (psilocybin, cropped) → common window must be ≤244 s. 120 s = ~4x the 30 s scale range,
+  fits every dataset with ≥2 windows (≥3 with 60 s overlap on short recs). Implemented as a
+  SEPARATE prep `PrepDur120Ov60` feeding only `Ep_DetrendedFluctuationDur120` →
+  `detrendedFluctuationMean/SDEpochsDur120`; the 30 s battery is untouched.
+  - **Perf follow-up:** the DFA prep recomputes ZapLine (the expensive step) a 2nd time per
+    subject. At full scale, factor the denoised+filtered CONTINUOUS raw into its own cached
+    derivative and epoch both preps from it (CPU vs one big cached `.fif`/subject).
+  - **Possible refinement:** DFA is often run on a band's amplitude envelope (Hardstone 2012);
+    current DFA is broadband on the long epoch (matches the classical battery). Band-specific DFA
+    is a separate enhancement if wanted.
 
 ## 5. Cluster storage — watch BOTH space AND inode (file-count) quotas
 
