@@ -199,3 +199,102 @@ def meg_spectrum_fig(
         plt.close(_fig)
 
     return NodeResult(artifacts={".png": Artifact(item=fig, writer=writer if save else None)})
+
+
+def _dfa_exponent(x, boxes):
+    """Detrended-fluctuation exponent (Peng 1994) of a 1-D series over given box sizes.
+
+    Integrate the mean-removed signal, then for each box size ``n`` split into
+    non-overlapping windows, linearly detrend each (vectorized via lstsq), take the
+    RMS of residuals, and the fluctuation ``F(n)`` = RMS across windows. The exponent
+    is the slope of ``log F(n)`` vs ``log n`` over the supplied boxes (the fit range).
+    """
+    import numpy as np
+
+    x = np.asarray(x, dtype=float)
+    y = np.cumsum(x - x.mean())
+    n_t = y.size
+    logn, logF = [], []
+    for n in boxes:
+        n = int(n)
+        if n < 4 or n > n_t // 2:
+            continue
+        nseg = n_t // n
+        Y = y[: nseg * n].reshape(nseg, n)               # (nseg, n)
+        t = np.arange(n)
+        A = np.vstack([t, np.ones(n)]).T                 # (n, 2)
+        coef, *_ = np.linalg.lstsq(A, Y.T, rcond=None)   # (2, nseg) linear fit per window
+        resid = Y - (A @ coef).T                         # (nseg, n)
+        F = np.sqrt(np.mean(resid ** 2))                 # fluctuation across all windows
+        logn.append(np.log(n))
+        logF.append(np.log(F))
+    if len(logn) < 2:
+        return float("nan")
+    return float(np.polyfit(logn, logF, 1)[0])
+
+
+@register_node
+def alpha_envelope_dfa(
+    mne_object,
+    l_freq: float = 8.0,
+    h_freq: float = 12.0,
+    window_s: float = 240.0,
+    crop_start_s: float = 2.0,
+    env_sfreq: float = 100.0,
+    dfa_lower_s: float = 1.0,
+    n_boxes: int = 20,
+    save: bool = True,
+) -> NodeResult:
+    """Alpha-band amplitude-envelope DFA on a single long continuous window.
+
+    Canonical neural long-range-temporal-correlation (LRTC) DFA (Hardstone et al.
+    2012): band-pass to alpha → Hilbert amplitude envelope → DFA on ONE continuous
+    window, with the fluctuation fit restricted to box sizes in
+    ``[dfa_lower_s, window_s/10]`` (Hardstone's upper bound = signal_length/10; the
+    lower bound of a few seconds avoids the short-scale bias of the narrow-band
+    filtered envelope). One exponent per MEG channel.
+
+    A single ``window_s`` window (default 240 s = the cross-dataset common floor; the
+    shortest recording across datasets is 244 s — see RECORDING_DURATIONS.md) is used
+    instead of many short epochs so the exponent is comparable across datasets and
+    the analysed segment is genuinely continuous. The envelope is downsampled to
+    ``env_sfreq`` (its bandwidth is only a few Hz) purely for DFA speed.
+
+    NEEDS VALIDATION: the fit range (``dfa_lower_s``, ``window_s/10``), envelope
+    downsample, and edge pad (``crop_start_s``) are principled defaults, not yet
+    tuned against a reference implementation (e.g. NBT).
+
+    Returns a ``.nc`` DataArray with dims ``(epochs, spaces)`` (epochs=1) so it feeds
+    the standard ``aggregate_across_dimension`` → for_dataframe path unchanged.
+    """
+    import numpy as np
+    import xarray as xr
+
+    raw = _load_mne(mne_object).copy()
+    meg = [c for c in raw.ch_names if re.match(r"^M[LRZ][A-Z]", c)]
+    if meg:
+        raw.pick(meg)
+    raw.filter(l_freq, h_freq, verbose="error")            # alpha band
+    raw.apply_hilbert(envelope=True, verbose="error")      # data -> amplitude envelope
+    if env_sfreq and env_sfreq < float(raw.info["sfreq"]):
+        raw.resample(env_sfreq, verbose="error")
+    sf = float(raw.info["sfreq"])
+
+    data = raw.get_data()                                  # (n_ch, n_times) envelope
+    start = int(round(crop_start_s * sf))
+    length = int(round(window_s * sf))
+    if data.shape[1] < start + length:                     # shorter than pad+window
+        start = max(0, data.shape[1] - length)             # fall back to last `length`
+    seg = data[:, start:start + length]
+
+    lo = max(4, int(round(dfa_lower_s * sf)))
+    hi = max(lo + 1, int(round((window_s / 10.0) * sf)))   # Hardstone upper bound = len/10
+    boxes = np.unique(np.round(np.logspace(np.log10(lo), np.log10(hi), n_boxes)).astype(int))
+    exps = np.array([_dfa_exponent(seg[i], boxes) for i in range(seg.shape[0])])
+
+    da = xr.DataArray(
+        exps[None, :], dims=("epochs", "spaces"),
+        coords={"spaces": list(raw.ch_names)}, name="alphaEnvelopeDfa",
+    )
+    writer = (lambda path, arr=da: arr.to_netcdf(path, engine="netcdf4", format="NETCDF4")) if save else None
+    return NodeResult(artifacts={".nc": Artifact(item=da, writer=writer)})

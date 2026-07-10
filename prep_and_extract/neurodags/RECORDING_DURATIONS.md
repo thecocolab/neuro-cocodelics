@@ -47,35 +47,39 @@ LSD by task (n, min/median/max s):
 | 180 s | 3 | 3 | 1 | 2 | 1 | yes (1 min) |
 | 240 s | 2 | 2 | 1 | 1 | 1 | barely (psilo 244 s) |
 
-## Decision — **120 s window, 60 s overlap**
+## Decision — **single 240 s continuous window, alpha-envelope DFA**
 
-Rationale:
-- **~4× the DFA scale range** vs the current 30 s battery (probes box sizes up to ~30 s).
-- **Fits every dataset** with ≥2 non-overlapping windows; the 60 s overlap lifts the
-  short recordings to ~3 windows (psilocybin 244 s → 3, tiagabine 300 s → 4) so we can
-  average DFA across windows within a recording and estimate its variability.
-- Comfortable margin over the 244 s floor (unlike 180/240 s, which give only 1 window
-  on the short datasets and barely fit psilocybin).
-- `sfreq` stays **600 Hz** so DFA box sizes in seconds are comparable across datasets.
+The window has to fit the **shortest recording in every dataset**. Two floors bind it:
+psilocybin has one outlier at **244 s** (next 285 s, then all 28 others ≥300 s) and
+**tiagabine is uniformly 300 s**. So ≤240 s keeps all 362 recordings with margin to trim
+filter/Hilbert edges; ~280 s would drop the one short psilocybin file and squeeze
+tiagabine; >300 s would drop all tiagabine. 240 s is the max that keeps everyone.
 
-Rejected alternatives: 60 s (little gain over 30 s), 180/240 s (no within-recording
-averaging on short datasets, tight fit), whole-recording (length varies 244–600 s →
-DFA scale range not comparable across datasets).
+Chosen: **one 240 s continuous window** (not overlapping epochs). A literature pass
+(Hardstone et al. 2012; typical M/EEG DFA uses minutes of continuous data) showed:
+- DFA robustness grows with continuous length; the canonical fit range is **max box =
+  signal_length / 10** (→ 24 s at 240 s), min box a few seconds. A single long window
+  maximises the scale range and is comparable across datasets (identical length).
+- The within-recording averaging the old 120 s-overlap plan gave is worth less than one
+  long, continuous, comparable fit.
+- Canonically DFA is run on the **amplitude envelope of a narrow band** (alpha 8–12 Hz),
+  not broadband — so the dedicated DFA is alpha-envelope.
+
+Rejected: 120 s/60 s-overlap epochs (shorter scale range, less standard); pushing past
+240 s (drops recordings / eats edge margin for negligible scale gain).
 
 ## Implementation
 
-`pipeline_cocodelics.yml` gained a **separate** long-window prep that re-epochs the
-same denoised+bandpassed raw and feeds **only** DFA (the rest of the battery stays on
-`PrepDur30Ov20`):
+`pipeline_cocodelics.yml`:
+- **`DenoisedRaw`** — ZapLine (adaptive, `n_harmonics=2`) on the continuous raw, cached
+  and **shared** by every downstream prep (runs once/subject — the scale smoke showed
+  ZapLine was ~77% of prep compute and had been recomputed per prep).
+- **`Ep_AlphaEnvelopeDFA`** (`alpha_envelope_dfa` custom node) → `alphaEnvelopeDfa`:
+  from `DenoisedRaw`, band-pass 8–12 Hz → Hilbert amplitude envelope → downsample to
+  100 Hz → crop first **240 s** (2 s edge pad) → DFA with fit range **[1 s, 24 s]**
+  (= len/10). One exponent per channel.
 
-- `PrepDur120Ov60` — PickedRaw → ZapLine (adaptive, `n_harmonics=2`) → bandpass 0.1–150
-  → epoch **120 s / 60 s overlap** → resample 600 Hz.
-- `Ep_DetrendedFluctuationDur120` → `detrendedFluctuationMeanEpochsDur120` +
-  `detrendedFluctuationSDEpochsDur120` (mean + within-recording SD across windows).
+The 30 s broadband `detrendedFluctuationMeanEpochs` is kept for r2c parity.
 
-The 30 s `detrendedFluctuationMeanEpochs` is kept for continuity/comparison.
-
-> **Perf note (full scale):** this recomputes ZapLine a second time per subject. If
-> wall-clock matters, factor the denoised+filtered continuous raw into its own cached
-> derivative and epoch both preps from it (CPU vs one large cached `.fif`/subject —
-> see `TODO.md` §4).
+> **NEEDS VALIDATION:** alpha band, fit range, envelope downsample, and edge pad are
+> principled defaults, not yet tuned against a reference (e.g. NBT).

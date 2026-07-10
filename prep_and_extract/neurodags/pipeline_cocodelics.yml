@@ -56,41 +56,49 @@ DerivativeDefinitions:
         node: meg_spectrum_fig
         args: {mne_object: id.0, title: "Raw MEG spectrum (pre-denoise)"}
 
-  # ----- Preprocessing: ZapLine line-noise -> bandpass -> epoch -> resample ------
+  # ----- Denoise (ZapLine) on the CONTINUOUS raw — SHARED by all downstream preps --
+  # Factored out of the per-prep chains so the (expensive) adaptive ZapLine runs ONCE
+  # per subject: both PrepDur30Ov20 (the 30 s battery) and the alpha-envelope DFA branch
+  # epoch/derive from this. The scale smoke (job 47979274) showed ZapLine = ~77% of prep
+  # compute and it was being recomputed per prep; sharing it ~halves prep wall-time.
+  #
   # ZapLine (mne-denoise) replaces the notch: removes the line component (+harmonics) via DSS
   # while preserving neural signal. line_freq=50: the RawMegSpectrum QC figures show a clear 50 Hz
-  # line (+ 100 Hz harmonic, strong in perampanel) and NOTHING at 60 across datasets — i.e. these
-  # are 50 Hz-mains (UK/EU) sites, so the datasets_cocosprint.yml PowerLineFrequency=60 is wrong and
-  # r2c's hardcoded 50/100/150 notch was correct.
+  # line (+ 100 Hz harmonic, strong in perampanel) and NOTHING at 60 across datasets — 50 Hz-mains
+  # (UK/EU) sites, so PowerLineFrequency=60 was wrong and r2c's 50/100/150 notch was right.
   #
   # CONFIG CHOSEN via the ZapLine A/B (job 47827555) + parameter sweep (job 47939632):
   #  - adaptive=True (ZapLine-plus) beat adaptive=False on 50 Hz in ALL 5 datasets and 100 Hz in 4/5.
-  #  - n_harmonics=2 is REQUIRED to touch 100 Hz — adaptive mode does NOT auto-clean harmonics
-  #    (the old comment claiming it did was wrong; QC showed 100 Hz fully intact without it).
-  #  - The sweep confirmed adaptive removes many components across chunks (335/379) while preserving
-  #    signal (keep~0.99), reducing 50 Hz from raw ~5.5-8x to ~3.7-4.8x on the continuous data.
-  #    A ~3.7-4.8x narrow-bin residual remains and is inherent: adaptive_params (sigma/min_remove/
-  #    max_prop) had NO effect (self-regulating detection), and standard mode with explicit n_remove
-  #    up to 8 did WORSE. So this is the best available operating point. (The scarier "8-21x" seen on
-  #    the epoched+resampled prep is a finer-Welch-resolution artifact, not extra residual.)
-  PrepDur30Ov20:
+  #  - n_harmonics=2 is REQUIRED to touch 100 Hz — adaptive mode does NOT auto-clean harmonics.
+  #  - adaptive removes many comps across chunks (335/379) preserving signal (keep~0.99), cutting
+  #    50 Hz from raw ~5.5-8x to ~3.7-4.8x; residual is inherent (adaptive_params had no effect,
+  #    standard mode worse). Best available operating point.
+  DenoisedRaw:
     overwrite: False
-    save: True
+    save: True                          # cached so both preps reuse it (one ZapLine pass)
     for_dataframe: False
     nodes:
       - id: 0
         derivative: PickedRaw.fif
       - id: 1
         node: zapline_denoise
-        # adaptive=True -> ZapLine-plus (Klug & Kloosterman 2022): data segmentation + spectral-QA
-        # so it removes only as much as needed (gentler than the plain DSS notch we first saw).
-        # n_harmonics=2 -> also DSS-clean the 100 Hz harmonic (NOT automatic in adaptive mode).
-        args: {mne_object: id.0, line_freq: 50.0, adaptive: True, n_harmonics: 2}
-      - id: 2
+        # save: True -> emit a writer (this is the TERMINAL node of a save:True derivative;
+        # without it the node returns writer=None and neurodags crashes on artifact.writer()).
+        args: {mne_object: id.0, line_freq: 50.0, adaptive: True, n_harmonics: 2, save: True}
+
+  # ----- 30 s battery prep: bandpass -> epoch 30/20 -> resample (from DenoisedRaw) --
+  PrepDur30Ov20:
+    overwrite: False
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: DenoisedRaw.fif     # already ZapLine-denoised (continuous)
+      - id: 1
         node: basic_preprocessing
         args:
-          mne_object: id.1
-          notch_filter: null            # line noise handled by ZapLine above
+          mne_object: id.0
+          notch_filter: null            # line noise already handled by DenoisedRaw
           filter_args:
             l_freq: 0.1
             h_freq: 150
@@ -353,77 +361,47 @@ DerivativeDefinitions:
         node: aggregate_across_dimension
         args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
 
-  # ===== DFA long-window (120 s / 60 s overlap) ================================
-  # DFA (detrended fluctuation) is window-length-sensitive; the 30 s battery epochs
-  # are too short to probe slow (long-memory) dynamics. This SEPARATE prep re-epochs
-  # the SAME denoised+bandpassed raw at 120 s / 60 s-overlap and feeds ONLY the DFA
-  # node — the rest of the battery stays on PrepDur30Ov20.
+  # ===== DFA: alpha-band amplitude-envelope, single 240 s continuous window ======
+  # Canonical neural LRTC DFA (Hardstone et al. 2012): the 30 s broadband battery DFA
+  # (detrendedFluctuationMeanEpochs above) is kept for r2c parity, but the dedicated
+  # DFA is alpha-envelope on ONE long continuous window — the literature standard.
   #
-  # Window chosen 2026-07-09 from the per-dataset duration survey (duration_survey.py):
-  # recording lengths are ketamine/perampanel 600 s, tiagabine 300 s, LSD 420-600 s,
-  # psilocybin 244-427 s (cropped Infusion->Rest). Shortest recording = 244 s, so a
-  # window comparable across ALL datasets must be <=244 s. 120 s is ~4x the 30 s scale
-  # range yet fits every dataset with >=2 windows (>=3 with the 60 s overlap on the
-  # short recordings) for within-recording averaging. sfreq stays 600 Hz so DFA box
-  # sizes (in seconds) are comparable across datasets.
+  # Window = 240 s: from the per-dataset duration survey (duration_survey.py /
+  # RECORDING_DURATIONS.md) the shortest recording across datasets is 244 s (a cropped
+  # psilocybin file); 240 s is the longest window that fits EVERY recording (keeps all
+  # 362) with margin to trim filter/Hilbert edges. One continuous window (not epochs)
+  # maximises the DFA scale range (max box = 240/10 = 24 s per Hardstone) and keeps the
+  # exponent comparable across datasets. Reads DenoisedRaw so ZapLine is not recomputed.
   #
-  # NOTE (perf, full-scale): this recomputes ZapLine (the expensive adaptive step) a
-  # second time per subject. If wall-clock matters at full scale, factor the denoised+
-  # filtered CONTINUOUS raw into its own cached derivative and epoch both preps from it
-  # (trades CPU for one large cached .fif/subject — see TODO.md §4).
-  PrepDur120Ov60:
-    overwrite: False
+  # NEEDS VALIDATION: alpha band 8-12 Hz, fit range [1 s, 24 s], envelope @100 Hz, 2 s
+  # edge pad are principled defaults, not yet tuned vs a reference (e.g. NBT). The node
+  # returns (epochs=1, spaces) so the standard aggregate->for_dataframe path is reused.
+  Ep_AlphaEnvelopeDFA:
     save: True
     for_dataframe: False
     nodes:
       - id: 0
-        derivative: PickedRaw.fif
+        derivative: DenoisedRaw.fif
       - id: 1
-        node: zapline_denoise
-        args: {mne_object: id.0, line_freq: 50.0, adaptive: True, n_harmonics: 2}
-      - id: 2
-        node: basic_preprocessing
+        node: alpha_envelope_dfa
         args:
-          mne_object: id.1
-          notch_filter: null
-          filter_args:
-            l_freq: 0.1
-            h_freq: 150
-          epoch_config:
-            duration: 120.0
-            overlap: 60.0
-          resample: 600
-          extra_artifacts: False
+          mne_object: id.0
+          l_freq: 8.0
+          h_freq: 12.0
+          window_s: 240.0
+          crop_start_s: 2.0
+          env_sfreq: 100.0
+          dfa_lower_s: 1.0
 
-  Ep_DetrendedFluctuationDur120:
-    save: True
-    for_dataframe: False
-    nodes:
-      - id: 0
-        derivative: PrepDur120Ov60.fif
-      - id: 1
-        node: antropy_detrended_fluctuation
-        args: {data_like: id.0, dim: 'times'}
-
-  detrendedFluctuationMeanEpochsDur120:
+  alphaEnvelopeDfa:
     save: True
     for_dataframe: True
     nodes:
       - id: 0
-        derivative: Ep_DetrendedFluctuationDur120.nc
+        derivative: Ep_AlphaEnvelopeDFA.nc
       - id: 1
         node: aggregate_across_dimension
-        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}
-
-  detrendedFluctuationSDEpochsDur120:      # within-recording variability (meaningful with >=3 windows)
-    save: True
-    for_dataframe: True
-    nodes:
-      - id: 0
-        derivative: Ep_DetrendedFluctuationDur120.nc
-      - id: 1
-        node: aggregate_across_dimension
-        args: {xarray_data: id.0, dim: 'epochs', operation: 'std'}
+        args: {xarray_data: id.0, dim: 'epochs', operation: 'mean'}   # 1 window -> identity
 
   # ============================================================================
   # ===== EXPERIMENTAL (needs validation) ======================================
@@ -627,6 +605,7 @@ DerivativeDefinitions:
 DerivativeList:
   - PickedRaw
   - RawMegSpectrum          # QC figure (.png) — raw
+  - DenoisedRaw             # ZapLine once (shared by all preps)
   - PrepDur30Ov20
   - PrepSpectrum            # QC figure (.png) — post-prep
   # per-epoch intermediates
@@ -654,11 +633,9 @@ DerivativeList:
   - spectralEntropyMeanEpochs
   - hjorthMeanEpochs
   - detrendedFluctuationMeanEpochs
-  # DFA long-window (120 s / 60 s overlap) — separate prep, feeds only DFA
-  - PrepDur120Ov60
-  - Ep_DetrendedFluctuationDur120
-  - detrendedFluctuationMeanEpochsDur120
-  - detrendedFluctuationSDEpochsDur120
+  # DFA: alpha-band amplitude-envelope, single 240 s continuous window (from DenoisedRaw)
+  - Ep_AlphaEnvelopeDFA
+  - alphaEnvelopeDfa
   # ===== EXPERIMENTAL (needs validation) — see experimental_features.py =====
   # per-epoch intermediates
   - Ep_Atoms

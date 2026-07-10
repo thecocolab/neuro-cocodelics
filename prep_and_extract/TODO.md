@@ -131,18 +131,18 @@ Current prep (`PrepDur30Ov20`): pick MEG sensors + clean names → notch [50,100
   removes 335/379 comps, `keep`~0.99). Residual ~3.7-4.8x is inherent (adaptive self-regulates;
   `adaptive_params` had no effect, standard mode worse). Tooling: `make_zapcompare_pipeline.py`,
   `sweep_zapline.py`, `analyze_zapcompare.py`. QC figures: `RawMegSpectrum` + `PrepSpectrum` nodes.
-- **DFA longer window — DECIDED (2026-07-09): 120 s / 60 s overlap.** Measured recording durations
-  per dataset (`duration_survey.py`, see `neurodags/RECORDING_DURATIONS.md`): shortest recording
-  244 s (psilocybin, cropped) → common window must be ≤244 s. 120 s = ~4x the 30 s scale range,
-  fits every dataset with ≥2 windows (≥3 with 60 s overlap on short recs). Implemented as a
-  SEPARATE prep `PrepDur120Ov60` feeding only `Ep_DetrendedFluctuationDur120` →
-  `detrendedFluctuationMean/SDEpochsDur120`; the 30 s battery is untouched.
-  - **Perf follow-up:** the DFA prep recomputes ZapLine (the expensive step) a 2nd time per
-    subject. At full scale, factor the denoised+filtered CONTINUOUS raw into its own cached
-    derivative and epoch both preps from it (CPU vs one big cached `.fif`/subject).
-  - **Possible refinement:** DFA is often run on a band's amplitude envelope (Hardstone 2012);
-    current DFA is broadband on the long epoch (matches the classical battery). Band-specific DFA
-    is a separate enhancement if wanted.
+- **DFA — DECIDED + implemented (2026-07-10): alpha-envelope, single 240 s window.** Measured
+  durations (`duration_survey.py`, `neurodags/RECORDING_DURATIONS.md`): shortest recording 244 s
+  (psilocybin outlier; tiagabine uniformly 300 s) → 240 s is the max window keeping all 362.
+  A literature pass (Hardstone 2012: max box = len/10; DFA usually on a band's amplitude envelope,
+  minutes of continuous data) → use ONE 240 s continuous window on the **alpha (8–12 Hz) Hilbert
+  envelope** (custom node `alpha_envelope_dfa`, fit range [1 s, 24 s]) → `alphaEnvelopeDfa`.
+  The 30 s broadband `detrendedFluctuationMeanEpochs` stays for r2c parity.
+  - **ZapLine factored — DONE:** `DenoisedRaw` (ZapLine once on the continuous raw) is now shared
+    by `PrepDur30Ov20` + the DFA branch (scale smoke showed ZapLine ~77% of prep compute, was
+    recomputed per prep). ~halves prep wall-time.
+  - **NEEDS VALIDATION:** alpha band / fit range / envelope downsample (100 Hz) / 2 s edge pad are
+    principled defaults, not tuned vs a reference (e.g. NBT).
 
 ## 5. Cluster storage — watch BOTH space AND inode (file-count) quotas
 
