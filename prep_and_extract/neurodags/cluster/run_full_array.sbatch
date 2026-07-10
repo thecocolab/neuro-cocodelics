@@ -1,16 +1,22 @@
 #!/bin/bash
-# FULL RUN — per-dataset job array (one task per dataset). Computes + caches all
-# classical + DFA derivatives (NO experimental) to /scratch. A dependent job
-# (run_full_dataframe.sbatch) builds the combined dataframe afterwards.
-#   AID=$(sbatch --parsable --exclude=fc30557 cluster/run_full_array.sbatch)
+# FULL RUN — one array task PER FILE (neurodags-idiomatic fan-out). A global file index
+# (--only-index=$SLURM_ARRAY_TASK_ID over the full datasets yaml; 362 files, 0-361) means
+# each task processes ONE recording through all classical+DFA derivatives.
+#
+# Why per-file (not per-dataset): the validation probes showed (a) a 600s file needs ~30G
+# alone but 4 concurrent workers peaked at 102.7G (96G would OOM), and (b) per-dataset LSD
+# (226 files) would be ~10h and blow the wall limit. One file/task => one worker (~30G) +
+# short (~3-6 min) + resumable. Already-cached files (tiagabine/ketamine + smoke) return fast.
+#
+#   AID=$(sbatch --parsable --array=0-361%40 --exclude=fc30557 cluster/run_full_array.sbatch)
 #   sbatch --dependency=afterok:$AID --exclude=fc30557 cluster/run_full_dataframe.sbatch
 #
 #SBATCH --account=def-kjerbi
 #SBATCH --job-name=nrd_full
-#SBATCH --array=0-4              # 0=lsd(226) 1=ketamine(36) 2=perampanel(40) 3=psilo(30) 4=tiagabine(30)
-#SBATCH --time=05:00:00          # LSD is the long pole (~226 files @ ~140 s/file / 4 workers ~2.2 h)
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=96G                # smoke peaked at MaxRSS 63.5 GiB @ 64G (4 workers) — bump for margin
+#SBATCH --array=0-361%40          # 362 files; cap 40 concurrent (good cluster citizen)
+#SBATCH --time=01:30:00           # one 600s file is ~3-6 min; generous margin
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=48G                 # single-file peak ~30G (4-worker probe was 102.7G @128G)
 #SBATCH --output=logs/%x_%A_%a.out
 #SBATCH --error=logs/%x_%A_%a.err
 set -euo pipefail
@@ -24,30 +30,15 @@ export MPLBACKEND=Agg
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 
 cd "/scratch/${USER}/cocodelics_neurodags"
-mkdir -p logs outputs tmp_yaml
-
-DATASETS=(lsd ketamine perampanel psilocybin tiagabine)
-DS="${DATASETS[$SLURM_ARRAY_TASK_ID]}"
+mkdir -p logs outputs
 PIPE=pipeline_cocodelics.yml
-DS_YAML="tmp_yaml/datasets_${DS}.yml"
+DS=datasets_cocodelics.yml
 JSONL="logs/run_${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}.jsonl"
 
-# per-dataset datasets yaml: skip every dataset except $DS
-python - "$DS" "$DS_YAML" <<'PYEOF'
-import sys, yaml
-ds, out = sys.argv[1], sys.argv[2]
-d = yaml.safe_load(open("datasets_cocodelics.yml"))
-for k, v in d.items():
-    if isinstance(v, dict) and "name" in v:
-        v["skip"] = (k != ds)
-yaml.safe_dump(d, open(out, "w"), sort_keys=False)
-PYEOF
-
-# production set = DerivativeList MINUS experimental tier (same as run_production.sbatch)
+# production set = DerivativeList MINUS the experimental phi/IIT/Fisher/Harmonicity tier
 read -r -d '' PYSEL <<'PYEOF' || true
-import yaml, sys
-d = yaml.safe_load(open("pipeline_cocodelics.yml"))
-dl = d["DerivativeList"]
+import yaml
+dl = yaml.safe_load(open("pipeline_cocodelics.yml"))["DerivativeList"]
 EXCLUDE = {
  "Ep_Atoms","Ep_InfoDyn","Ep_IID","Ep_IIT","Ep_FisherInformation",
  "Ep_PowerSpectrumMultitaper","Ep_Harmonicity",
@@ -60,11 +51,8 @@ PYEOF
 mapfile -t RUN < <(python -c "$PYSEL")
 RUN_ARGS=(); for x in "${RUN[@]}"; do RUN_ARGS+=(--derivative "$x"); done
 
-echo "===== node $(hostname) array ${SLURM_ARRAY_JOB_ID} task ${SLURM_ARRAY_TASK_ID} dataset=${DS} run=${#RUN[@]} ====="
-python -c "import neurodags, antropy, mne, xarray, netCDF4; print('imports OK', neurodags.__version__)"
-
-echo "===== RUN ${DS} (all files) ====="
+echo "===== node $(hostname) task ${SLURM_ARRAY_TASK_ID} (file index ${SLURM_ARRAY_TASK_ID}) run=${#RUN[@]} ====="
 neurodags --log-level INFO --log-file "$JSONL" \
-  run "$PIPE" -d "$DS_YAML" "${RUN_ARGS[@]}" --n-jobs "${SLURM_CPUS_PER_TASK}" --skip-errors
+  run "$PIPE" -d "$DS" --only-index "${SLURM_ARRAY_TASK_ID}" "${RUN_ARGS[@]}" --n-jobs 1 --skip-errors
 
-echo "===== DONE ${DS} (task ${SLURM_ARRAY_TASK_ID}) ====="
+echo "===== DONE task ${SLURM_ARRAY_TASK_ID} ====="
