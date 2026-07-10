@@ -61,7 +61,18 @@ DerivativeDefinitions:
   # while preserving neural signal. line_freq=50: the RawMegSpectrum QC figures show a clear 50 Hz
   # line (+ 100 Hz harmonic, strong in perampanel) and NOTHING at 60 across datasets — i.e. these
   # are 50 Hz-mains (UK/EU) sites, so the datasets_cocosprint.yml PowerLineFrequency=60 is wrong and
-  # r2c's hardcoded 50/100/150 notch was correct. n_harmonics=3 -> 50/100/150.
+  # r2c's hardcoded 50/100/150 notch was correct.
+  #
+  # CONFIG CHOSEN via the ZapLine A/B (job 47827555) + parameter sweep (job 47939632):
+  #  - adaptive=True (ZapLine-plus) beat adaptive=False on 50 Hz in ALL 5 datasets and 100 Hz in 4/5.
+  #  - n_harmonics=2 is REQUIRED to touch 100 Hz — adaptive mode does NOT auto-clean harmonics
+  #    (the old comment claiming it did was wrong; QC showed 100 Hz fully intact without it).
+  #  - The sweep confirmed adaptive removes many components across chunks (335/379) while preserving
+  #    signal (keep~0.99), reducing 50 Hz from raw ~5.5-8x to ~3.7-4.8x on the continuous data.
+  #    A ~3.7-4.8x narrow-bin residual remains and is inherent: adaptive_params (sigma/min_remove/
+  #    max_prop) had NO effect (self-regulating detection), and standard mode with explicit n_remove
+  #    up to 8 did WORSE. So this is the best available operating point. (The scarier "8-21x" seen on
+  #    the epoched+resampled prep is a finer-Welch-resolution artifact, not extra residual.)
   PrepDur30Ov20:
     overwrite: False
     save: True
@@ -73,8 +84,8 @@ DerivativeDefinitions:
         node: zapline_denoise
         # adaptive=True -> ZapLine-plus (Klug & Kloosterman 2022): data segmentation + spectral-QA
         # so it removes only as much as needed (gentler than the plain DSS notch we first saw).
-        # line_freq=50 confirmed by RawMegSpectrum; harmonics auto-detected in adaptive mode.
-        args: {mne_object: id.0, line_freq: 50.0, adaptive: True}
+        # n_harmonics=2 -> also DSS-clean the 100 Hz harmonic (NOT automatic in adaptive mode).
+        args: {mne_object: id.0, line_freq: 50.0, adaptive: True, n_harmonics: 2}
       - id: 2
         node: basic_preprocessing
         args:
