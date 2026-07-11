@@ -2,9 +2,7 @@
 
 - source: `outputs/aggregate_full_raw.csv`
 - shape: 362 recordings x 14 features x 273 sensors (union) = 1383564 cells
-- **total NaN: 8204 (0.59%)**
-  - structural (sensor absent from dataset — expected): 7392 (90%)
-  - scattered (sensor present but NaN — data quality): 812 (10%)
+- **total NaN: 8204 (0.59%)** = structural 7392 (90%) + scattered 812 (10%)
 
 ## Per-dataset
 
@@ -16,9 +14,9 @@
 | psilocybin | 30 | 273 | 0.0020 | 224 |
 | tiagabine | 30 | 273 | 0.0000 | 0 |
 
-## Dead channels (present sensor, ALL features NaN in a recording)
+## Dead channels (present sensor, ALL features NaN)
 
-58 (recording x sensor) instances across 58 recordings.
+58 (recording x sensor) instances.
 
 ### Bad-sensor ranking
 | sensor | dead in N recordings |
@@ -29,4 +27,4 @@
 
 ## Partial-channel NaN
 
-None — every scattered NaN is a whole dead channel (all features NaN together), so no feature-specific computation failures.
+None — every scattered NaN is a whole dead channel.
