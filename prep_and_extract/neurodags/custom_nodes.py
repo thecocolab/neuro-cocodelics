@@ -148,20 +148,24 @@ def zapline_denoise(
 @register_node
 def meg_report_qc(
     raw,
+    denoised,
     epochs,
     title: str = "MEG QC",
     fmin: float = 1.0,
     fmax=None,
+    win_s: float = 2.0,
     psd_seconds: float = 60.0,
     save: bool = True,
 ) -> NodeResult:
-    """Per-recording QC as a self-contained ``mne.Report`` HTML (raw vs prepped).
+    """Per-recording QC as a self-contained ``mne.Report`` HTML.
 
-    Replaces the standalone PSD ``.png`` figures with a richer, standard MEG-QC HTML:
-    a custom mean-MEG-PSD overlay (RAW pre-denoise vs PREPPED post-ZapLine+bandpass,
-    50/100 Hz marked — the clearest view of the line removal), plus mne.Report's native
-    per-channel PSD for the raw and the prepped epochs. Two derivative inputs:
-    ``raw`` (PickedRaw) + ``epochs`` (PrepDur30Ov20).
+    The primary figure overlays the ZapLine before/after at MATCHED spectral resolution:
+    ``PickedRaw`` (pre-denoise) vs ``DenoisedRaw`` (post-ZapLine) — both continuous, same
+    Welch window (``win_s``), so the peak heights ARE comparable and the true line
+    reduction is visible (an earlier version compared raw-continuous vs prepped-epochs at
+    different resolutions, which hid the effect). The final ``PrepDur30Ov20`` (post
+    bandpass+resample+epoch) is drawn as a third reference curve. Plus mne.Report's native
+    per-channel PSD. Three derivative inputs: ``raw`` + ``denoised`` + ``epochs``.
     """
     import matplotlib
     matplotlib.use("Agg")
@@ -170,36 +174,52 @@ def meg_report_qc(
     import mne
 
     raw = _load_mne(raw)
+    dn = _load_mne(denoised)
     ep = _load_mne(epochs)
 
     def mean_meg_psd(obj):
         picks = [c for c in obj.ch_names if re.match(r"^M[LRZ][A-Z]", c)]
         sf = float(obj.info["sfreq"])
         fmx = fmax if fmax is not None else min(120.0, sf / 2.0 - 1.0)
-        psd = obj.compute_psd(method="welch", fmin=fmin, fmax=fmx,
-                              picks=(picks if picks else "data"), verbose="error")
+        nperseg = int(round(win_s * sf))   # fixed-DURATION window -> same Hz resolution for all
+        psd = obj.compute_psd(method="welch", fmin=fmin, fmax=fmx, n_fft=nperseg,
+                              n_per_seg=nperseg, picks=(picks if picks else "data"),
+                              verbose="error")
         p, f = psd.get_data(picks="all", return_freqs=True)
         if p.ndim == 3:          # Epochs -> average over epochs
             p = p.mean(axis=0)
         return f, p.mean(axis=0), p.shape[0]
 
+    def line_ratio(f, m, f0):
+        peak = m[(f >= f0 - 1) & (f <= f0 + 1)].max()
+        base = np.median(m[((f >= f0 - 5) & (f <= f0 - 2)) | ((f >= f0 + 2) & (f <= f0 + 5))])
+        return peak / base
+
     fr, mr, nr = mean_meg_psd(raw)
+    fd, md, nd = mean_meg_psd(dn)
     fe, me, ne = mean_meg_psd(ep)
+    r50_raw, r50_dn = line_ratio(fr, mr, 50.0), line_ratio(fd, md, 50.0)
+    red = 100.0 * (1.0 - r50_dn / r50_raw) if r50_raw else 0.0
+
     fig, ax = plt.subplots(figsize=(9, 4))
-    ax.semilogy(fr, mr, lw=1.6, color="0.5", label=f"raw pre-denoise ({nr} ch)")
-    ax.semilogy(fe, me, lw=1.6, color="tab:red", label=f"prepped post-ZapLine ({ne} ch)")
+    ax.semilogy(fr, mr, lw=1.8, color="0.55", label=f"PickedRaw (pre-ZapLine, {nr} ch)")
+    ax.semilogy(fd, md, lw=1.8, color="tab:red", label=f"DenoisedRaw (post-ZapLine, {nd} ch)")
+    ax.semilogy(fe, me, lw=1.1, color="tab:blue", ls=":", label=f"Prepped (+bandpass+600Hz, {ne} ch)")
     for lf, c in ((50.0, "tab:red"), (100.0, "tab:orange")):
-        ax.axvline(lf, ls="--", lw=0.9, alpha=0.6, color=c, label=f"{lf:g} Hz")
+        ax.axvline(lf, ls="--", lw=0.9, alpha=0.5, color=c)
     ax.set_xlabel("Frequency (Hz)"); ax.set_ylabel("PSD (T²/Hz)")
-    ax.set_title("Mean MEG PSD — raw vs prepped (ZapLine line removal)")
+    ax.set_title(f"ZapLine effect (matched {win_s:g}s Welch) — 50 Hz reduced {red:.0f}%")
     ax.legend(fontsize=8, loc="upper right"); fig.tight_layout()
 
     rep = mne.Report(title=title, verbose="error")
-    rep.add_figure(fig, title="Mean MEG PSD: raw vs prepped", section="Spectrum",
-                   caption="Grey = raw (pre-denoise); red = prepped (ZapLine adaptive + n_harmonics=2, "
-                           "bandpass 0.1–150, 30 s epochs). Dashed = 50/100 Hz line + harmonic.")
+    rep.add_figure(fig, title="Mean MEG PSD: ZapLine before/after (matched resolution)", section="Spectrum",
+                   caption=f"Grey = PickedRaw (pre-ZapLine); red = DenoisedRaw (post ZapLine adaptive + "
+                           f"n_harmonics=2) — both continuous at the same {win_s:g}s Welch window, so the "
+                           f"50 Hz reduction ({red:.0f}%: peak/baseline {r50_raw:.1f}→{r50_dn:.1f}) is "
+                           f"directly comparable. Dotted blue = final prepped (adds bandpass 0.1–150 + "
+                           f"resample 600 + 30 s epoching). Dashed verticals = 50/100 Hz.")
     plt.close(fig)
-    rep.add_raw(raw, title="Raw picked (pre-denoise)", psd=psd_seconds, butterfly=False, projs=False)
+    rep.add_raw(dn, title="DenoisedRaw (post-ZapLine, continuous)", psd=psd_seconds, butterfly=False, projs=False)
     rep.add_epochs(ep, title="Prepped epochs (ZapLine + bandpass 0.1–150, 30 s)", psd=True, projs=False)
 
     def writer(path, _r=rep):

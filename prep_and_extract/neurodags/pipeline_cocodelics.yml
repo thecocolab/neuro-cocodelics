@@ -94,10 +94,11 @@ DerivativeDefinitions:
           resample: 600
           extra_artifacts: False
 
-  # ----- QC: combined mne.Report HTML (raw vs prepped, per recording) -----------
-  # Standard MEG-QC as a self-contained HTML (mne.Report): a raw-vs-prepped mean-PSD
-  # overlay (ZapLine line removal at a glance) + native per-channel PSD for raw + prep.
-  # Two inputs: PickedRaw (pre-denoise) + PrepDur30Ov20 (post-ZapLine+bandpass epochs).
+  # ----- QC: combined mne.Report HTML (per recording) ---------------------------
+  # Standard MEG-QC as a self-contained HTML (mne.Report). Primary figure overlays the
+  # ZapLine before/after at MATCHED spectral resolution: PickedRaw vs DenoisedRaw (both
+  # continuous) so the 50 Hz reduction is directly comparable; the final prepped epochs
+  # are a third reference curve. Three inputs: PickedRaw + DenoisedRaw + PrepDur30Ov20.
   MegQCReport:
     overwrite: False
     save: True
@@ -106,10 +107,12 @@ DerivativeDefinitions:
       - id: 0
         derivative: PickedRaw.fif
       - id: 1
-        derivative: PrepDur30Ov20.fif
+        derivative: DenoisedRaw.fif
       - id: 2
+        derivative: PrepDur30Ov20.fif
+      - id: 3
         node: meg_report_qc
-        args: {raw: id.0, epochs: id.1, title: "cocodelics MEG QC"}
+        args: {raw: id.0, denoised: id.1, epochs: id.2, title: "cocodelics MEG QC"}
 
   # ===== Per-epoch features (intermediate, cached) ==============================
   # xarray view of the epoched prep (dims: epochs, spaces, times). Needed because
