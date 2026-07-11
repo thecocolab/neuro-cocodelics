@@ -42,20 +42,6 @@ DerivativeDefinitions:
         node: pick_meg_clean_names     # keep CTF MEG sensors only + strip -<runid> suffix
         args: {mne_object: id.0, save: True}
 
-  # ----- QC: raw MEG spectrum figure (BEFORE denoise/filter) --------------------
-  # A .png inspection artifact — mean PSD across MEG channels, 50/60 Hz marked — to
-  # eyeball the true line frequency + data quality per subject before trusting the prep.
-  RawMegSpectrum:
-    overwrite: False
-    save: True
-    for_dataframe: False
-    nodes:
-      - id: 0
-        derivative: PickedRaw.fif
-      - id: 1
-        node: meg_spectrum_fig
-        args: {mne_object: id.0, title: "Raw MEG spectrum (pre-denoise)"}
-
   # ----- Denoise (ZapLine) on the CONTINUOUS raw — SHARED by all downstream preps --
   # Factored out of the per-prep chains so the (expensive) adaptive ZapLine runs ONCE
   # per subject: both PrepDur30Ov20 (the 30 s battery) and the alpha-envelope DFA branch
@@ -107,19 +93,6 @@ DerivativeDefinitions:
             overlap: 20.0
           resample: 600
           extra_artifacts: False
-
-  # ----- QC: post-prep MEG spectrum (after ZapLine + bandpass + resample) --------
-  # Pair with RawMegSpectrum to eyeball the line removal + bandpass shape per subject.
-  PrepSpectrum:
-    overwrite: False
-    save: True
-    for_dataframe: False
-    nodes:
-      - id: 0
-        derivative: PrepDur30Ov20.fif
-      - id: 1
-        node: meg_spectrum_fig
-        args: {mne_object: id.0, title: "Prepped MEG spectrum (post ZapLine+bandpass)"}
 
   # ----- QC: combined mne.Report HTML (raw vs prepped, per recording) -----------
   # Standard MEG-QC as a self-contained HTML (mne.Report): a raw-vs-prepped mean-PSD
@@ -621,11 +594,9 @@ DerivativeDefinitions:
 
 DerivativeList:
   - PickedRaw
-  - RawMegSpectrum          # QC figure (.png) — raw
   - DenoisedRaw             # ZapLine once (shared by all preps)
   - PrepDur30Ov20
-  - PrepSpectrum            # QC figure (.png) — post-prep
-  - MegQCReport             # QC report (.html) — mne.Report, raw vs prepped
+  - MegQCReport             # QC report (.html) — mne.Report, raw vs prepped (replaces the PNG spectra)
   # per-epoch intermediates
   - Ep_XarrayEpochs
   - Ep_LZivComplexity

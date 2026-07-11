@@ -146,62 +146,6 @@ def zapline_denoise(
 
 
 @register_node
-def meg_spectrum_fig(
-    mne_object,
-    fmin: float = 1.0,
-    fmax=None,
-    method: str = "welch",
-    title: str = "MEG spectrum",
-    save: bool = True,
-) -> NodeResult:
-    """QC: PSD of MEG data as a .png figure — mean across channels + per-channel spread.
-
-    Works on a Raw or Epochs `.fif`. Use it BEFORE prep (raw, MEG-picked) to eyeball the true
-    line frequency (50/60 Hz markers drawn) + data quality, and AFTER prep to confirm the
-    ZapLine line removal + bandpass shape. Not a feature — a `.png` inspection artifact.
-    """
-    import matplotlib
-    matplotlib.use("Agg")
-    import matplotlib.pyplot as plt
-    import numpy as np
-
-    raw = _load_mne(mne_object)
-    sf = float(raw.info["sfreq"])
-    if fmax is None:
-        fmax = min(120.0, sf / 2.0 - 1.0)
-    # Pick MEG sensors by NAME (^M[LRZ][A-Z]) + force compute_psd to use them regardless of
-    # channel *type* — some FieldTrip-bidsified data mis-types MEG channels as 'misc', which the
-    # default (data-type) picking would drop, showing far too few channels.
-    meg_picks = [c for c in raw.ch_names if re.match(r"^M[LRZ][A-Z]", c)]
-    psd = raw.compute_psd(
-        method=method, fmin=fmin, fmax=fmax,
-        picks=(meg_picks if meg_picks else "data"), verbose="error",
-    )
-    psds, freqs = psd.get_data(picks="all", return_freqs=True)  # 'all' -> not dropped by type
-    if psds.ndim == 3:  # Epochs input: (n_epochs, n_channels, n_freqs) -> average over epochs
-        psds = psds.mean(axis=0)
-    mean_psd = psds.mean(axis=0)  # -> mean across channels
-
-    fig, ax = plt.subplots(figsize=(9, 4))
-    ax.semilogy(freqs, psds.T, color="0.8", lw=0.4)
-    ax.semilogy(freqs, mean_psd, color="C0", lw=1.8, label=f"mean of {psds.shape[0]} MEG ch")
-    for lf, col in ((50.0, "tab:red"), (60.0, "tab:purple")):
-        if fmin < lf < fmax:
-            ax.axvline(lf, color=col, ls="--", lw=0.9, alpha=0.7, label=f"{lf:g} Hz")
-    ax.set_xlabel("Frequency (Hz)")
-    ax.set_ylabel("PSD (T²/Hz)")
-    ax.set_title(f"{title} — {psds.shape[0]} MEG ch, sfreq {sf:g} Hz")
-    ax.legend(fontsize=8, loc="upper right")
-    fig.tight_layout()
-
-    def writer(path, _fig=fig):
-        _fig.savefig(path, dpi=110)
-        plt.close(_fig)
-
-    return NodeResult(artifacts={".png": Artifact(item=fig, writer=writer if save else None)})
-
-
-@register_node
 def meg_report_qc(
     raw,
     epochs,
