@@ -212,3 +212,4 @@ reports/handoff/*.csv
 reports/handoff/*.tar.gz
 reports/handoff/cocodelics_report.html
 reports/cocodelics_handoff.tar.gz
+reports/handoff/cocodelics_topomaps.html
