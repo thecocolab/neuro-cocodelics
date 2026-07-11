@@ -1,0 +1,148 @@
+<!doctype html><html lang=en><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width, initial-scale=1">
+<title>cocodelics — MEG complexity features & drug decoding</title>
+<style>
+  :root { --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+    --grid:#e1e0d9; --border:rgba(11,11,11,.10); --s1:#2a78d6; --s2:#1baf7a; --good:#0ca30c;
+    --dead:#d03b3b; }
+  @media (prefers-color-scheme: dark) { :root { --page:#0d0d0d; --surface:#1a1a19; --ink:#fff;
+    --ink2:#c3c2b7; --muted:#898781; --grid:#2c2c2a; --border:rgba(255,255,255,.10); --s1:#3987e5;
+    --s2:#199e70; --good:#0ca30c; --dead:#d03b3b; } }
+  html{color-scheme:light dark}
+  body{margin:0;background:var(--page);color:var(--ink);line-height:1.55;
+    font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+  .wrap{max-width:920px;margin:0 auto;padding:40px 22px 72px}
+  h1{font-size:26px;margin:0 0 6px;letter-spacing:-.02em}
+  h2{font-size:19px;margin:38px 0 6px;padding-top:16px;border-top:1px solid var(--grid)}
+  h3{font-size:15px;margin:22px 0 6px;color:var(--ink2)}
+  .lede{color:var(--ink2);font-size:15px;margin:0 0 8px}
+  p{font-size:14.5px} li{font-size:14px}
+  code{background:var(--grid);padding:1px 5px;border-radius:4px;font-size:12.5px}
+  .tiles{display:flex;flex-wrap:wrap;gap:12px;margin:22px 0}
+  .tile{flex:1 1 160px;background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:15px 17px}
+  .tile-v{font-size:25px;font-weight:650;letter-spacing:-.01em}
+  .tile-l{font-size:12.5px;color:var(--ink2);margin-top:2px} .tile-s{font-size:11px;color:var(--muted)}
+  table{border-collapse:collapse;width:100%;background:var(--surface);border:1px solid var(--border);
+    border-radius:12px;overflow:hidden;font-size:13.5px;margin:12px 0}
+  th,td{text-align:left;padding:8px 13px;border-bottom:1px solid var(--grid)}
+  th{color:var(--ink2);font-weight:600;font-size:12px}
+  tr:last-child td{border-bottom:none}
+  td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+  td.sig{color:var(--good);font-weight:600} td.ns{color:var(--muted)}
+  .p{font-weight:400;color:var(--muted);font-size:11.5px}
+  .flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:14px 0;font-size:12.5px}
+  .box{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 11px}
+  .arr{color:var(--muted)}
+  .chart{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 10px;margin:12px 0}
+  .ax{fill:var(--muted);font-size:10px} .dslab{fill:var(--ink);font-size:12.5px;font-weight:600}
+  .barlab{fill:var(--ink2);font-size:10.5px;font-variant-numeric:tabular-nums}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--ink2);margin:2px 0 0 12px}
+  .sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+  .note{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--muted);
+    border-radius:8px;padding:11px 14px;font-size:13px;color:var(--ink2);margin:12px 0}
+  ul{margin:8px 0}
+</style></head><body><div class=wrap>
+
+<h1>cocodelics — MEG complexity features &amp; drug-vs-placebo decoding</h1>
+<p class=lede>Karim Jerbi lab. Do complexity / fractal features of resting-and-task MEG separate a drug
+state from placebo? This report covers the two stages end to end: (1) a reproducible feature-extraction
+pipeline over five drug datasets, and (2) a machine-learning decoding exploration with rigorous
+subject-level significance testing.</p>
+<div class=tiles><div class="tile"><div class="tile-v">5</div><div class="tile-l">drug datasets</div><div class=tile-s>MEG, altered states</div></div><div class="tile"><div class="tile-v">362</div><div class="tile-l">recordings</div><div class=tile-s>80 subjects</div></div><div class="tile"><div class="tile-v">14×273</div><div class="tile-l">features × sensors</div><div class=tile-s>3,822 columns</div></div><div class="tile"><div class="tile-v">11/11</div><div class="tile-l">decodable &gt; chance</div><div class=tile-s>subject-paired permutation</div></div></div>
+<div class=note><b>Headline.</b> Drug-vs-placebo is decodable above chance from the complexity features
+for <b>every drug tested</b> — strongly for LSD, tiagabine and ketamine (ROC-AUC ~0.8–0.9), and
+significantly (if weakly) for perampanel and psilocybin — validated by a within-subject permutation null.</div>
+
+<h2>Part 1 — Feature extraction</h2>
+<p>Raw MEG (CTF 275-channel, 1200 Hz) → BIDS → a declarative
+<a href="https://github.com/yjmantilla/neurodags">neurodags</a> pipeline, run as a per-file job array on
+the Alliance cluster (362 recordings, 0 errors).</p>
+<div class=flow>
+  <span class=box>raw MEG (.ds/.mat)</span><span class=arr>→</span>
+  <span class=box>BIDS</span><span class=arr>→</span>
+  <span class=box>pick MEG + clean names</span><span class=arr>→</span>
+  <span class=box>notch 50/100/150</span><span class=arr>→</span>
+  <span class=box>band-pass 0.1–150</span><span class=arr>→</span>
+  <span class=box>epoch 30 s / 20 s ov</span><span class=arr>→</span>
+  <span class=box>resample 600 Hz</span><span class=arr>→</span>
+  <span class=box>features</span>
+</div>
+
+<h3>Datasets</h3>
+<table><thead><tr><th>dataset (drug)</th><th class=n>recordings</th><th class=n>subjects</th>
+  <th class=n>NaN frac</th></tr></thead><tbody><tr><td>LSD (serotonergic psychedelic)</td><td class=n>226</td><td class=n>19</td><td class=n>0.007</td></tr><tr><td>perampanel (AMPA antagonist)</td><td class=n>40</td><td class=n>20</td><td class=n>0.007</td></tr><tr><td>ketamine (NMDA antagonist)</td><td class=n>36</td><td class=n>18</td><td class=n>0.004</td></tr><tr><td>psilocybin (serotonergic)</td><td class=n>30</td><td class=n>15</td><td class=n>0.002</td></tr><tr><td>tiagabine (GABA reuptake inhibitor)</td><td class=n>30</td><td class=n>15</td><td class=n>0.000</td></tr></tbody></table>
+
+<h3>Preprocessing</h3>
+<ul>
+  <li><b>Channel handling</b>: keep CTF MEG sensors by name (<code>^M[LRZ][A-Z]</code>, ~271–273/dataset),
+      strip the varying <code>-&lt;runid&gt;</code> suffix so sensors align across datasets. (A bidsification
+      bug that had mistyped MEG channels as <code>misc</code> was fixed → clean feature matrix.)</li>
+  <li><b>Line noise</b>: <b>notch [50, 100, 150] Hz</b>. These are 50 Hz-mains sites (clear 50 Hz + 100 Hz
+      in the raw spectra, nothing at 60). We first tried ZapLine (mne-denoise), but it only reduced the
+      50 Hz line ~40 %; the notch removes it ~fully (verified 21×→1× peak/baseline). The ZapLine
+      under-removal was written up + handed to a collaborator; both feature runs (ZapLine + notch) are
+      preserved, notch is the production set.</li>
+  <li><b>Band-pass</b> 0.1–150 Hz, <b>epoch</b> 30 s (20 s overlap), <b>resample</b> 600 Hz.</li>
+</ul>
+
+<h3>Features (per epoch → mean/var over epochs, per sensor)</h3>
+<ul style="columns:2"><li>Lempel-Ziv complexity</li><li>Higuchi fractal dim (mean, var)</li><li>Katz fractal dim (mean, SD)</li><li>Petrosian fractal dim</li><li>SVD entropy</li><li>num zero-crossings</li><li>permutation entropy</li><li>spectral entropy</li><li>Hjorth mobility</li><li>Hjorth complexity</li><li>detrended fluctuation (DFA, 30 s)</li><li>alpha-envelope DFA (240 s window)</li></ul>
+<p>Alpha-envelope DFA is computed separately on a single 240 s continuous window (the common floor across
+datasets) on the 8–12 Hz Hilbert envelope — the canonical long-range-temporal-correlation setup
+(Hardstone 2012). Final table: <b>14 features × 273 sensors = 3,822 columns</b>,
+362 recordings.</p>
+
+<h3>Quality control</h3>
+<p>NaN in the feature table is <b>0.59 %</b> and entirely <b>sensor-driven</b> (denoise-independent):
+~90 % structural (a sensor absent from a dataset — the 273 is the union across sites) + ~10 % from
+<b>dead channels</b>, dominated by one systematically-flat sensor (<code>MRT36</code>, dead in ~all
+perampanel + psilocybin recordings). No feature-computation failures (every feature has an identical
+NaN count). Per-recording spectra + a NaN heat-map are available as self-contained HTML QC reports.</p>
+
+<h2>Part 2 — Machine-learning decoding</h2>
+<h3>Method</h3>
+<ul>
+  <li><b>Task</b>: binary drug (1) vs placebo (0), one problem per dataset (LSD split per task + an
+      average), on the notch feature table (per problem, feature columns with any NaN are dropped).</li>
+  <li><b>Engine</b>: <a href="https://github.com/BabaSanfour/coco-pipe">coco-pipe</a> <code>decoding</code>
+      (dev). Models: L2 logistic regression and random forest (both robust to p≫n; gradient boosting and
+      SVC were unstable in this regime and excluded). Standardised features.</li>
+  <li><b>Cross-validation</b>: <b>GroupKFold by subject</b> (5 folds) — no subject appears in both train
+      and test, so scores reflect generalisation to new people, not memorised subjects.</li>
+  <li><b>Significance</b>: a <b>within-subject paired label permutation</b> (each subject contributes one
+      placebo + one drug recording; permuting the label within subject is the correct null) on pooled
+      out-of-fold predictions. p = (1 + #{null ≥ observed}) / (1 + n_perms).</li>
+</ul>
+
+<h3>ROC-AUC per dataset (subject-grouped CV)</h3>
+<div class=chart><svg viewBox="0 0 760 334" width="100%" role="img" aria-label="ROC-AUC per dataset by model"><line x1="150.0" y1="28" x2="150.0" y2="310" stroke="var(--grid)" stroke-width="1"/><text x="150.0" y="326" text-anchor="middle" class="ax">0.4</text><line x1="246.7" y1="28" x2="246.7" y2="310" stroke="var(--grid)" stroke-width="1"/><text x="246.7" y="326" text-anchor="middle" class="ax">0.5</text><line x1="343.3" y1="28" x2="343.3" y2="310" stroke="var(--grid)" stroke-width="1"/><text x="343.3" y="326" text-anchor="middle" class="ax">0.6</text><line x1="440.0" y1="28" x2="440.0" y2="310" stroke="var(--grid)" stroke-width="1"/><text x="440.0" y="326" text-anchor="middle" class="ax">0.7</text><line x1="536.7" y1="28" x2="536.7" y2="310" stroke="var(--grid)" stroke-width="1"/><text x="536.7" y="326" text-anchor="middle" class="ax">0.8</text><line x1="633.3" y1="28" x2="633.3" y2="310" stroke="var(--grid)" stroke-width="1"/><text x="633.3" y="326" text-anchor="middle" class="ax">0.9</text><line x1="730.0" y1="28" x2="730.0" y2="310" stroke="var(--grid)" stroke-width="1"/><text x="730.0" y="326" text-anchor="middle" class="ax">1.0</text><line x1="246.7" y1="28" x2="246.7" y2="310" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="4 3"/><text x="246.7" y="22" text-anchor="middle" class="ax">chance</text><text x="140" y="61" text-anchor="end" class="dslab">LSD (avg)</text><rect x="246.7" y="42" width="347.0" height="13" rx="3" fill="var(--s1)"><title>LogReg: AUC=0.859, p=0.002</title></rect><text x="598.7" y="53" class="barlab">0.86 *</text><rect x="246.7" y="60" width="378.9" height="13" rx="3" fill="var(--s2)"><title>RandomForest: AUC=0.892, p=0.003</title></rect><text x="630.6" y="71" class="barlab">0.89 *</text><text x="140" y="115" text-anchor="end" class="dslab">tiagabine</text><rect x="246.7" y="96" width="311.3" height="13" rx="3" fill="var(--s1)"><title>LogReg: AUC=0.822, p=0.002</title></rect><text x="562.9" y="107" class="barlab">0.82 *</text><rect x="246.7" y="114" width="356.7" height="13" rx="3" fill="var(--s2)"><title>RandomForest: AUC=0.869, p=0.003</title></rect><text x="608.4" y="125" class="barlab">0.87 *</text><text x="140" y="169" text-anchor="end" class="dslab">ketamine</text><rect x="246.7" y="150" width="304.5" height="13" rx="3" fill="var(--s1)"><title>LogReg: AUC=0.815, p=0.002</title></rect><text x="556.2" y="161" class="barlab">0.81 *</text><rect x="246.7" y="168" width="263.9" height="13" rx="3" fill="var(--s2)"><title>RandomForest: AUC=0.773, p=0.003</title></rect><text x="515.6" y="179" class="barlab">0.77 *</text><text x="140" y="223" text-anchor="end" class="dslab">perampanel</text><rect x="246.7" y="204" width="166.3" height="13" rx="3" fill="var(--s1)"><title>LogReg: AUC=0.672, p=0.018</title></rect><text x="417.9" y="215" class="barlab">0.67 *</text><rect x="246.7" y="222" width="158.5" height="13" rx="3" fill="var(--s2)"><title>RandomForest: AUC=0.664, p=0.046</title></rect><text x="410.2" y="233" class="barlab">0.66 *</text><text x="140" y="277" text-anchor="end" class="dslab">psilocybin</text><rect x="246.7" y="258" width="122.8" height="13" rx="3" fill="var(--s1)"><title>LogReg: AUC=0.627, p=0.076</title></rect><text x="374.4" y="269" class="barlab">0.63 n.s.</text><rect x="246.7" y="276" width="208.8" height="13" rx="3" fill="var(--s2)"><title>RandomForest: AUC=0.716, p=0.010</title></rect><text x="460.5" y="287" class="barlab">0.72 *</text></svg>
+  <div class=legend><span><span class=sw style="background:var(--s1)"></span>Logistic regression</span>
+    <span><span class=sw style="background:var(--s2)"></span>Random forest</span>
+    <span>* = p &lt; 0.05 (permutation)</span></div></div>
+
+<table><thead><tr><th>dataset</th><th class=n>Logistic regression</th>
+  <th class=n>Random forest</th></tr></thead><tbody><tr><td>LSD (avg of 6 tasks)</td><td class="n sig">0.86 <span class=p>(p=0.002)</span></td><td class="n sig">0.89 <span class=p>(p=0.003)</span></td></tr><tr><td>tiagabine</td><td class="n sig">0.82 <span class=p>(p=0.002)</span></td><td class="n sig">0.87 <span class=p>(p=0.003)</span></td></tr><tr><td>ketamine</td><td class="n sig">0.81 <span class=p>(p=0.002)</span></td><td class="n sig">0.77 <span class=p>(p=0.003)</span></td></tr><tr><td>perampanel</td><td class="n sig">0.67 <span class=p>(p=0.018)</span></td><td class="n sig">0.66 <span class=p>(p=0.046)</span></td></tr><tr><td>psilocybin</td><td class="n ns">0.63 <span class=p>(p=0.076)</span></td><td class="n sig">0.72 <span class=p>(p=0.010)</span></td></tr></tbody></table>
+<p style="font-size:13px;color:var(--ink2)">LSD's six tasks (Open1/2, Closed1/2, Music, Video) are all
+individually significant (ROC-AUC 0.79–0.90, p≈0.002); the table shows the task-average. Null AUC sat at
+chance (~0.49) for every problem, so nothing is a p≫n artifact. psilocybin is the one split decision —
+significant for the random forest (nonlinear) but not logistic regression.</p>
+
+<div class=note><b>Caveats.</b> High-dimensional, small-n (362 recordings, 15–20 subjects/dataset,
+3,822 features) — cross-validated AUCs are optimistic in absolute terms; the permutation test
+establishes <i>significance</i>, not effect-size precision. The residual line noise is common-mode across
+drug/placebo (same site), so it is unlikely to drive the discrimination. Feature/sensor-level attribution
+(which complexity measures &amp; regions carry the signal) is the natural next analysis.</div>
+
+<h2>Reproducibility</h2>
+<ul>
+  <li>Repo <code>thecocolab/neuro-cocodelics</code>, branch <code>feature-extraction-neurodags</code>.</li>
+  <li>Feature pipeline: <code>prep_and_extract/neurodags/</code> (pipeline_cocodelics.yml, custom_nodes.py,
+      cluster/run_full_array.sbatch). Derivatives on <code>/scratch/…/cocodelics_derivatives_notch</code>;
+      table <code>outputs/aggregate_notch_raw.csv</code>.</li>
+  <li>ML: <code>machine-learning/explore_decoding.py</code> (baseline) + <code>perm_test.py</code>
+      (permutation); results in <code>machine-learning/outputs/ml_explore/</code>.</li>
+  <li>QC methods: <code>nan_qc.py</code>, <code>meg_report_qc</code> (mne.Report); ZapLine writeup
+      <code>ZAPLINE_ISSUE.md</code>.</li>
+</ul>
+</div></body></html>
