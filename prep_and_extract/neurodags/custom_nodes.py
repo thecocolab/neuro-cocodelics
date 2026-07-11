@@ -146,11 +146,33 @@ def zapline_denoise(
 
 
 @register_node
+def notch_denoise(
+    mne_object,
+    freqs=(50.0, 100.0, 150.0),
+    save: bool = False,
+) -> NodeResult:
+    """Remove power-line noise with a notch filter (classic r2c approach).
+
+    Chosen over ZapLine (2026-07-11): ZapLine adaptive only reduced the 50 Hz line ~40%
+    (verified — see git history / the A/B + sweep), leaving a visible residual peak; the
+    notch removes the line + harmonics essentially completely, at the cost of gouging a
+    narrow band around each ``freqs`` entry. Applied to the CONTINUOUS raw so both the
+    30 s battery prep and the alpha-envelope DFA branch share one denoised source.
+    (The alpha band 8–12 Hz is untouched by a 50/100/150 notch.)
+    """
+    raw = _load_mne(mne_object).copy()
+    raw.notch_filter(list(freqs), verbose="error")
+    writer = (lambda path: raw.save(path, overwrite=True)) if save else None
+    return NodeResult(artifacts={".fif": Artifact(item=raw, writer=writer)})
+
+
+@register_node
 def meg_report_qc(
     raw,
     denoised,
     epochs,
     title: str = "MEG QC",
+    denoise_desc: str = "denoise",
     fmin: float = 1.0,
     fmax=None,
     win_s: float = 2.0,
@@ -202,25 +224,25 @@ def meg_report_qc(
     red = 100.0 * (1.0 - r50_dn / r50_raw) if r50_raw else 0.0
 
     fig, ax = plt.subplots(figsize=(9, 4))
-    ax.semilogy(fr, mr, lw=1.8, color="0.55", label=f"PickedRaw (pre-ZapLine, {nr} ch)")
-    ax.semilogy(fd, md, lw=1.8, color="tab:red", label=f"DenoisedRaw (post-ZapLine, {nd} ch)")
+    ax.semilogy(fr, mr, lw=1.8, color="0.55", label=f"PickedRaw (pre-denoise, {nr} ch)")
+    ax.semilogy(fd, md, lw=1.8, color="tab:red", label=f"DenoisedRaw (post-denoise, {nd} ch)")
     ax.semilogy(fe, me, lw=1.1, color="tab:blue", ls=":", label=f"Prepped (+bandpass+600Hz, {ne} ch)")
     for lf, c in ((50.0, "tab:red"), (100.0, "tab:orange")):
         ax.axvline(lf, ls="--", lw=0.9, alpha=0.5, color=c)
     ax.set_xlabel("Frequency (Hz)"); ax.set_ylabel("PSD (T²/Hz)")
-    ax.set_title(f"ZapLine effect (matched {win_s:g}s Welch) — 50 Hz reduced {red:.0f}%")
+    ax.set_title(f"{denoise_desc} — 50 Hz reduced {red:.0f}% (matched {win_s:g}s Welch)")
     ax.legend(fontsize=8, loc="upper right"); fig.tight_layout()
 
     rep = mne.Report(title=title, verbose="error")
-    rep.add_figure(fig, title="Mean MEG PSD: ZapLine before/after (matched resolution)", section="Spectrum",
-                   caption=f"Grey = PickedRaw (pre-ZapLine); red = DenoisedRaw (post ZapLine adaptive + "
-                           f"n_harmonics=2) — both continuous at the same {win_s:g}s Welch window, so the "
-                           f"50 Hz reduction ({red:.0f}%: peak/baseline {r50_raw:.1f}→{r50_dn:.1f}) is "
-                           f"directly comparable. Dotted blue = final prepped (adds bandpass 0.1–150 + "
-                           f"resample 600 + 30 s epoching). Dashed verticals = 50/100 Hz.")
+    rep.add_figure(fig, title="Mean MEG PSD: denoise before/after (matched resolution)", section="Spectrum",
+                   caption=f"Grey = PickedRaw (pre-denoise); red = DenoisedRaw (post {denoise_desc}) — both "
+                           f"continuous at the same {win_s:g}s Welch window, so the 50 Hz reduction "
+                           f"({red:.0f}%: peak/baseline {r50_raw:.1f}→{r50_dn:.1f}) is directly comparable. "
+                           f"Dotted blue = final prepped (adds bandpass 0.1–150 + resample 600 + 30 s "
+                           f"epoching). Dashed verticals = 50/100 Hz.")
     plt.close(fig)
-    rep.add_raw(dn, title="DenoisedRaw (post-ZapLine, continuous)", psd=psd_seconds, butterfly=False, projs=False)
-    rep.add_epochs(ep, title="Prepped epochs (ZapLine + bandpass 0.1–150, 30 s)", psd=True, projs=False)
+    rep.add_raw(dn, title="DenoisedRaw (post-denoise, continuous)", psd=psd_seconds, butterfly=False, projs=False)
+    rep.add_epochs(ep, title="Prepped epochs (denoise + bandpass 0.1–150, 30 s)", psd=True, projs=False)
 
     def writer(path, _r=rep):
         _r.save(path, overwrite=True, open_browser=False)

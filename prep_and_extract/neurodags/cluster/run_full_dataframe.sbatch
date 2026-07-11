@@ -43,9 +43,9 @@ echo "dataframe features: ${#DF[@]}"
 
 echo "===== combined dataframe (wide) across all 5 datasets ====="
 neurodags --log-level WARNING dataframe "$PIPE" -d "$DS" \
-  "${DF_ARGS[@]}" --format wide --output "outputs/feats_full_wide.csv" --n-jobs "${SLURM_CPUS_PER_TASK}"
+  "${DF_ARGS[@]}" --format wide --output "outputs/feats_notch_wide.csv" --n-jobs "${SLURM_CPUS_PER_TASK}"
 
 echo "===== bridge -> coco-pipe aggregate columns ====="
-python to_cocopipe_columns.py "outputs/feats_full_wide.csv" "outputs/aggregate_full_raw.csv" || true
+python to_cocopipe_columns.py "outputs/feats_notch_wide.csv" "outputs/aggregate_notch_raw.csv" || true
 
 echo "===== DONE ====="

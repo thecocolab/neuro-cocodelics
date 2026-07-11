@@ -10,12 +10,10 @@
 # (Earlier this pointed at the per-dataset scratch `bids`/`meg_data_BIDS`; scratch purges at 60d,
 #  the shared dir is backed-up. LSD there was bidsified from scratch MEG_LSDV2 — see TODO §3.)
 #
-# derivatives_path -> `/scratch/yorguin/cocodelics_derivatives/MEG_<D>` (moved off /project
-# 2026-07-09). The feature pipeline is inode-heavy (~31 files/subject x 362 subjects), and
-# /project rrg-kjerbi was at 428K/500K files (86%) and SHARED across the group — writing the
-# full run there risked tipping the shared inode quota. /scratch has ~739K free inodes + 13 TiB
-# and features are regenerable (60-day purge is fine; aggregate CSVs are transported off). The
-# durable BIDS stays on /project. See TODO.md §5.
+# derivatives_path -> `/scratch/yorguin/cocodelics_derivatives_notch/MEG_<D>`. On /scratch (off
+# the 86%-full shared /project inode quota; regenerable, 60-day purge OK — see TODO.md §5). The
+# `_notch` suffix keeps this run SEPARATE from the earlier ZapLine full run (preserved at
+# /scratch/yorguin/cocodelics_derivatives), per the 2026-07-11 switch to a notch (ZAPLINE_ISSUE.md).
 
 lsd:
   name: MEG_LSD
@@ -24,7 +22,7 @@ lsd:
     fir:   "/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/bids/MEG_LSD/**/*_meg.fif"
     local: "_data/MEG_LSD/**/*_meg.fif"
   derivatives_path:
-    fir:   "/scratch/yorguin/cocodelics_derivatives/MEG_LSD"
+    fir:   "/scratch/yorguin/cocodelics_derivatives_notch/MEG_LSD"
     local: "_outputs/MEG_LSD"
 
 ketamine:
@@ -34,7 +32,7 @@ ketamine:
     fir:   "/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/bids/MEG_ketamine/**/*_meg.fif"
     local: "_data/MEG_ketamine/**/*_meg.fif"
   derivatives_path:
-    fir:   "/scratch/yorguin/cocodelics_derivatives/MEG_ketamine"
+    fir:   "/scratch/yorguin/cocodelics_derivatives_notch/MEG_ketamine"
     local: "_outputs/MEG_ketamine"
 
 perampanel:
@@ -44,7 +42,7 @@ perampanel:
     fir:   "/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/bids/MEG_perampanel/**/*_meg.fif"
     local: "_data/MEG_perampanel/**/*_meg.fif"
   derivatives_path:
-    fir:   "/scratch/yorguin/cocodelics_derivatives/MEG_perampanel"
+    fir:   "/scratch/yorguin/cocodelics_derivatives_notch/MEG_perampanel"
     local: "_outputs/MEG_perampanel"
 
 psilocybin:
@@ -54,7 +52,7 @@ psilocybin:
     fir:   "/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/bids/MEG_psilocybin/**/*_meg.fif"
     local: "_data/MEG_psilocybin/**/*_meg.fif"
   derivatives_path:
-    fir:   "/scratch/yorguin/cocodelics_derivatives/MEG_psilocybin"
+    fir:   "/scratch/yorguin/cocodelics_derivatives_notch/MEG_psilocybin"
     local: "_outputs/MEG_psilocybin"
 
 tiagabine:
@@ -64,5 +62,5 @@ tiagabine:
     fir:   "/home/yorguin/projects/rrg-kjerbi/shared/neuro-cocodelics/bids/MEG_tiagabine/**/*_meg.fif"
     local: "_data/MEG_tiagabine/**/*_meg.fif"
   derivatives_path:
-    fir:   "/scratch/yorguin/cocodelics_derivatives/MEG_tiagabine"
+    fir:   "/scratch/yorguin/cocodelics_derivatives_notch/MEG_tiagabine"
     local: "_outputs/MEG_tiagabine"

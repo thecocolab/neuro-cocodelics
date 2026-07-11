@@ -42,35 +42,30 @@ DerivativeDefinitions:
         node: pick_meg_clean_names     # keep CTF MEG sensors only + strip -<runid> suffix
         args: {mne_object: id.0, save: True}
 
-  # ----- Denoise (ZapLine) on the CONTINUOUS raw — SHARED by all downstream preps --
-  # Factored out of the per-prep chains so the (expensive) adaptive ZapLine runs ONCE
-  # per subject: both PrepDur30Ov20 (the 30 s battery) and the alpha-envelope DFA branch
-  # epoch/derive from this. The scale smoke (job 47979274) showed ZapLine = ~77% of prep
-  # compute and it was being recomputed per prep; sharing it ~halves prep wall-time.
+  # ----- Denoise (NOTCH) on the CONTINUOUS raw — SHARED by all downstream preps -----
+  # A shared "denoised continuous" derivative so both PrepDur30Ov20 (the 30 s battery) and
+  # the alpha-envelope DFA branch derive from one source (+ the QC report can overlay the
+  # matched before/after).
   #
-  # ZapLine (mne-denoise) replaces the notch: removes the line component (+harmonics) via DSS
-  # while preserving neural signal. line_freq=50: the RawMegSpectrum QC figures show a clear 50 Hz
-  # line (+ 100 Hz harmonic, strong in perampanel) and NOTHING at 60 across datasets — 50 Hz-mains
-  # (UK/EU) sites, so PowerLineFrequency=60 was wrong and r2c's 50/100/150 notch was right.
-  #
-  # CONFIG CHOSEN via the ZapLine A/B (job 47827555) + parameter sweep (job 47939632):
-  #  - adaptive=True (ZapLine-plus) beat adaptive=False on 50 Hz in ALL 5 datasets and 100 Hz in 4/5.
-  #  - n_harmonics=2 is REQUIRED to touch 100 Hz — adaptive mode does NOT auto-clean harmonics.
-  #  - adaptive removes many comps across chunks (335/379) preserving signal (keep~0.99), cutting
-  #    50 Hz from raw ~5.5-8x to ~3.7-4.8x; residual is inherent (adaptive_params had no effect,
-  #    standard mode worse). Best available operating point.
+  # DENOISE = notch [50, 100, 150] (classic r2c), chosen 2026-07-11 over ZapLine: ZapLine
+  # adaptive only reduced the 50 Hz line ~40% (peak/baseline ~13x->8x), leaving a visible
+  # residual; adaptive_params had no effect and fixed mode was worse (see the A/B job 47827555,
+  # sweep 47939632, and ZAPLINE_ISSUE.md — handed to a collaborator). The notch removes the
+  # line + harmonics essentially completely at the cost of a narrow band around each freq.
+  # (The alpha band 8-12 Hz is untouched by a 50/100/150 notch.) The ZapLine derivatives from
+  # the earlier full run are PRESERVED at /scratch/.../cocodelics_derivatives; this notch run
+  # writes to a SEPARATE derivatives_neurodags path (see datasets_cocodelics.yml).
   DenoisedRaw:
     overwrite: False
-    save: True                          # cached so both preps reuse it (one ZapLine pass)
+    save: True                          # cached so both preps reuse the one notch pass
     for_dataframe: False
     nodes:
       - id: 0
         derivative: PickedRaw.fif
       - id: 1
-        node: zapline_denoise
-        # save: True -> emit a writer (this is the TERMINAL node of a save:True derivative;
-        # without it the node returns writer=None and neurodags crashes on artifact.writer()).
-        args: {mne_object: id.0, line_freq: 50.0, adaptive: True, n_harmonics: 2, save: True}
+        node: notch_denoise
+        # save: True -> terminal node of a save:True derivative must emit a writer.
+        args: {mne_object: id.0, freqs: [50.0, 100.0, 150.0], save: True}
 
   # ----- 30 s battery prep: bandpass -> epoch 30/20 -> resample (from DenoisedRaw) --
   PrepDur30Ov20:
@@ -79,12 +74,12 @@ DerivativeDefinitions:
     for_dataframe: False
     nodes:
       - id: 0
-        derivative: DenoisedRaw.fif     # already ZapLine-denoised (continuous)
+        derivative: DenoisedRaw.fif     # already notch-denoised (continuous)
       - id: 1
         node: basic_preprocessing
         args:
           mne_object: id.0
-          notch_filter: null            # line noise already handled by DenoisedRaw
+          notch_filter: null            # line noise already handled by DenoisedRaw (notch)
           filter_args:
             l_freq: 0.1
             h_freq: 150
@@ -112,7 +107,8 @@ DerivativeDefinitions:
         derivative: PrepDur30Ov20.fif
       - id: 3
         node: meg_report_qc
-        args: {raw: id.0, denoised: id.1, epochs: id.2, title: "cocodelics MEG QC"}
+        args: {raw: id.0, denoised: id.1, epochs: id.2, title: "cocodelics MEG QC",
+               denoise_desc: "notch 50/100/150"}
 
   # ===== Per-epoch features (intermediate, cached) ==============================
   # xarray view of the epoched prep (dims: epochs, spaces, times). Needed because
