@@ -208,3 +208,7 @@ data_sprint/
 *png
 uv.lock
 prep_and_extract/neurodags/outputs/
+reports/handoff/*.csv
+reports/handoff/*.tar.gz
+reports/handoff/cocodelics_report.html
+reports/cocodelics_handoff.tar.gz
