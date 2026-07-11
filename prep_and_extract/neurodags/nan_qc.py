@@ -47,6 +47,8 @@ def analyze(csv_path: str) -> dict:
     total_cells = df.shape[0] * len(feat_cols)
     total_nan = int(df[feat_cols].isna().sum().sum())
 
+    cols_by_feat = {f: [c for c in feat_cols if parsed[c][0] == f] for f in feats}
+
     datasets = list(df["dataset"].unique())
     recs_per = {d: int((df["dataset"] == d).sum()) for d in datasets}
     present = {}
@@ -83,6 +85,16 @@ def analyze(csv_path: str) -> dict:
                 partial.append((d, row.get("subject"), row.get("session"), s, n_nan))
     scattered = len(dead) * n_feat + sum(p[4] for p in partial)
 
+    # ---- feature dimension: is NaN feature-dependent, or purely sensor-driven? ----
+    feat_nan = {f: int(df[cols_by_feat[f]].isna().sum().sum()) for f in feats}
+    feat_frac = {f: feat_nan[f] / (df.shape[0] * len(cols_by_feat[f])) for f in feats}
+    feat_ds = {}   # (feature, dataset) -> NaN cell count
+    for d, g in df.groupby("dataset"):
+        for f in feats:
+            feat_ds[(f, d)] = int(g[cols_by_feat[f]].isna().sum().sum())
+    # uniform => every feature has the SAME total NaN => NaN is sensor-driven, not feature-specific
+    feat_uniform = len(set(feat_nan.values())) == 1
+
     # sensors interesting for the heatmap: absent-in-some-dataset OR dead-somewhere
     absent = {d: (set(sensors) - present[d]) for d in datasets}
     interesting = sorted({s for d in datasets for s in absent[d]} | set(sensor_dead))
@@ -103,6 +115,7 @@ def analyze(csv_path: str) -> dict:
         total_cells=total_cells, total_nan=total_nan, structural=structural, scattered=scattered,
         per_dataset=per_dataset, dead=dead, partial=partial, sensor_dead=sensor_dead,
         datasets=datasets, interesting=interesting, grid=grid, recs_per=recs_per, feats=feats,
+        feat_nan=feat_nan, feat_frac=feat_frac, feat_ds=feat_ds, feat_uniform=feat_uniform,
     )
 
 
@@ -120,6 +133,18 @@ def to_markdown(r: dict) -> str:
     for d in sorted(r["per_dataset"], key=lambda x: -x["nan_cells"]):
         L.append(f"| {d['dataset']} | {d['recordings']} | {d['sensors_present']} | "
                  f"{d['nan_frac']:.4f} | {d['nan_cells']} |")
+    L += ["", "## By feature (is NaN feature-dependent?)\n"]
+    if r["feat_uniform"]:
+        v = next(iter(r["feat_nan"].values()))
+        L.append(f"**Feature-independent** — all {r['n_features']} features have an identical NaN "
+                 f"count ({v}), so NaN is driven entirely by sensors (absent/dead), not by any "
+                 f"feature's computation. No feature is disproportionately failing.\n")
+    else:
+        L.append("NaN counts DIFFER across features — a feature computes NaN more than others "
+                 "(see table); investigate that feature.\n")
+    L += ["| feature | NaN cells | NaN frac |", "|---|---:|---:|"]
+    for f, n in sorted(r["feat_nan"].items(), key=lambda x: -x[1]):
+        L.append(f"| {f} | {n} | {r['feat_frac'][f]:.4f} |")
     L += ["", "## Dead channels (present sensor, ALL features NaN)\n",
           f"{len(r['dead'])} (recording x sensor) instances.\n", "### Bad-sensor ranking",
           "| sensor | dead in N recordings |", "|---|---:|"]
@@ -188,6 +213,35 @@ def to_html(r: dict) -> str:
     heatmap = (f"<table class=heat><thead><tr><th></th>{head}</tr></thead>"
                f"<tbody>{''.join(hrows)}</tbody></table>")
 
+    # feature x dataset heatmap (sequential blue by NaN count; normalized for contrast)
+    maxfd = max(r["feat_ds"].values()) or 1
+    frows = []
+    for f in sorted(r["feats"]):
+        cells = []
+        for d in datasets:
+            n = r["feat_ds"][(f, d)]
+            recs = r["recs_per"][d]
+            frac = n / (recs * r["n_sensors"]) if recs else 0.0
+            if n == 0:
+                cells.append(f'<td class="cell live" title="{esc(f)}: 0 NaN in {esc(d)}"></td>')
+            else:
+                inten = n / maxfd
+                cells.append(f'<td class="cell seq" style="--i:{inten:.3f}" '
+                             f'title="{esc(f)}: {n} NaN cells in {esc(d)} ({frac:.2%})">{n}</td>')
+        frows.append(f"<tr><th class=hrow>{esc(f)}</th>{''.join(cells)}</tr>")
+    feat_heat = (f"<table class=heat><thead><tr><th></th>{head}</tr></thead>"
+                 f"<tbody>{''.join(frows)}</tbody></table>")
+    if r["feat_uniform"]:
+        v = next(iter(r["feat_nan"].values()))
+        feat_note = (f'<p class="ok">Feature-independent — all {r["n_features"]} features have an '
+                     f'<b>identical</b> NaN count ({v} cells each), so within every dataset the '
+                     f'columns below are uniform. NaN is driven entirely by sensors (absent or dead), '
+                     f'not by any feature\'s computation — no feature is disproportionately failing.</p>')
+    else:
+        feat_note = ('<p class="ok" style="border-color:var(--dead)">NaN counts DIFFER across features '
+                     '— some feature computes NaN more than others (see the non-uniform rows below); '
+                     'investigate it.</p>')
+
     # bad-sensor ranking
     rank = "".join(f"<tr><td>{esc(s)}</td><td class=n>{n}</td></tr>"
                    for s, n in sorted(r["sensor_dead"].items(), key=lambda x: -x[1]))
@@ -212,11 +266,11 @@ def to_html(r: dict) -> str:
 <style>
   :root {{
     --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
-    --grid:#e1e0d9; --border:rgba(11,11,11,.10); --absent:#d8d7d0; --dead:#d03b3b;
+    --grid:#e1e0d9; --border:rgba(11,11,11,.10); --absent:#d8d7d0; --dead:#d03b3b; --seq:#256abf;
   }}
   @media (prefers-color-scheme: dark) {{
     :root {{ --page:#0d0d0d; --surface:#1a1a19; --ink:#fff; --ink2:#c3c2b7; --muted:#898781;
-      --grid:#2c2c2a; --border:rgba(255,255,255,.10); --absent:#3a3a37; --dead:#d03b3b; }}
+      --grid:#2c2c2a; --border:rgba(255,255,255,.10); --absent:#3a3a37; --dead:#d03b3b; --seq:#3987e5; }}
   }}
   html{{color-scheme:light dark}}
   body{{margin:0;background:var(--page);color:var(--ink);
@@ -248,6 +302,8 @@ def to_html(r: dict) -> str:
   .cell.absent{{background:var(--absent);color:var(--muted)}}
   .cell.dead{{background:color-mix(in srgb, var(--dead) calc(var(--a)*100%), var(--surface));
     color:#fff;font-weight:600}}
+  .cell.seq{{background:color-mix(in srgb, var(--seq) calc(var(--i)*60%), var(--surface));
+    color:var(--ink)}}
   .legend{{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin:10px 2px}}
   .sw{{display:inline-block;width:13px;height:13px;border-radius:3px;vertical-align:-2px;margin-right:5px;
     border:1px solid var(--border)}}
@@ -272,6 +328,11 @@ def to_html(r: dict) -> str:
   <span><span class=sw style="background:var(--grid);opacity:.35"></span>present &amp; live</span>
 </div>
 <div class=heatwrap>{heatmap}</div>
+
+<h2>Feature × dataset NaN <span style="font-weight:400;color:var(--muted);font-size:12px">
+  (is any feature disproportionately NaN?)</span></h2>
+{feat_note}
+<div class=heatwrap>{feat_heat}</div>
 
 <h2>Bad-sensor ranking</h2>
 <table class=tbl><thead><tr><th>sensor</th><th class=n>dead in N recordings</th></tr></thead>
