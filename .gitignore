@@ -207,3 +207,4 @@ src/
 data_sprint/
 *png
 uv.lock
+prep_and_extract/neurodags/outputs/

@@ -201,6 +201,69 @@ def meg_spectrum_fig(
     return NodeResult(artifacts={".png": Artifact(item=fig, writer=writer if save else None)})
 
 
+@register_node
+def meg_report_qc(
+    raw,
+    epochs,
+    title: str = "MEG QC",
+    fmin: float = 1.0,
+    fmax=None,
+    psd_seconds: float = 60.0,
+    save: bool = True,
+) -> NodeResult:
+    """Per-recording QC as a self-contained ``mne.Report`` HTML (raw vs prepped).
+
+    Replaces the standalone PSD ``.png`` figures with a richer, standard MEG-QC HTML:
+    a custom mean-MEG-PSD overlay (RAW pre-denoise vs PREPPED post-ZapLine+bandpass,
+    50/100 Hz marked — the clearest view of the line removal), plus mne.Report's native
+    per-channel PSD for the raw and the prepped epochs. Two derivative inputs:
+    ``raw`` (PickedRaw) + ``epochs`` (PrepDur30Ov20).
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import mne
+
+    raw = _load_mne(raw)
+    ep = _load_mne(epochs)
+
+    def mean_meg_psd(obj):
+        picks = [c for c in obj.ch_names if re.match(r"^M[LRZ][A-Z]", c)]
+        sf = float(obj.info["sfreq"])
+        fmx = fmax if fmax is not None else min(120.0, sf / 2.0 - 1.0)
+        psd = obj.compute_psd(method="welch", fmin=fmin, fmax=fmx,
+                              picks=(picks if picks else "data"), verbose="error")
+        p, f = psd.get_data(picks="all", return_freqs=True)
+        if p.ndim == 3:          # Epochs -> average over epochs
+            p = p.mean(axis=0)
+        return f, p.mean(axis=0), p.shape[0]
+
+    fr, mr, nr = mean_meg_psd(raw)
+    fe, me, ne = mean_meg_psd(ep)
+    fig, ax = plt.subplots(figsize=(9, 4))
+    ax.semilogy(fr, mr, lw=1.6, color="0.5", label=f"raw pre-denoise ({nr} ch)")
+    ax.semilogy(fe, me, lw=1.6, color="tab:red", label=f"prepped post-ZapLine ({ne} ch)")
+    for lf, c in ((50.0, "tab:red"), (100.0, "tab:orange")):
+        ax.axvline(lf, ls="--", lw=0.9, alpha=0.6, color=c, label=f"{lf:g} Hz")
+    ax.set_xlabel("Frequency (Hz)"); ax.set_ylabel("PSD (T²/Hz)")
+    ax.set_title("Mean MEG PSD — raw vs prepped (ZapLine line removal)")
+    ax.legend(fontsize=8, loc="upper right"); fig.tight_layout()
+
+    rep = mne.Report(title=title, verbose="error")
+    rep.add_figure(fig, title="Mean MEG PSD: raw vs prepped", section="Spectrum",
+                   caption="Grey = raw (pre-denoise); red = prepped (ZapLine adaptive + n_harmonics=2, "
+                           "bandpass 0.1–150, 30 s epochs). Dashed = 50/100 Hz line + harmonic.")
+    plt.close(fig)
+    rep.add_raw(raw, title="Raw picked (pre-denoise)", psd=psd_seconds, butterfly=False, projs=False)
+    rep.add_epochs(ep, title="Prepped epochs (ZapLine + bandpass 0.1–150, 30 s)", psd=True, projs=False)
+
+    def writer(path, _r=rep):
+        _r.save(path, overwrite=True, open_browser=False)
+
+    return NodeResult(artifacts={".html": Artifact(item=rep, writer=writer if save else None)})
+
+
 def _dfa_exponent(x, boxes):
     """Detrended-fluctuation exponent (Peng 1994) of a 1-D series over given box sizes.
 

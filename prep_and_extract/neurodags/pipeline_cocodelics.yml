@@ -121,6 +121,23 @@ DerivativeDefinitions:
         node: meg_spectrum_fig
         args: {mne_object: id.0, title: "Prepped MEG spectrum (post ZapLine+bandpass)"}
 
+  # ----- QC: combined mne.Report HTML (raw vs prepped, per recording) -----------
+  # Standard MEG-QC as a self-contained HTML (mne.Report): a raw-vs-prepped mean-PSD
+  # overlay (ZapLine line removal at a glance) + native per-channel PSD for raw + prep.
+  # Two inputs: PickedRaw (pre-denoise) + PrepDur30Ov20 (post-ZapLine+bandpass epochs).
+  MegQCReport:
+    overwrite: False
+    save: True
+    for_dataframe: False
+    nodes:
+      - id: 0
+        derivative: PickedRaw.fif
+      - id: 1
+        derivative: PrepDur30Ov20.fif
+      - id: 2
+        node: meg_report_qc
+        args: {raw: id.0, epochs: id.1, title: "cocodelics MEG QC"}
+
   # ===== Per-epoch features (intermediate, cached) ==============================
   # xarray view of the epoched prep (dims: epochs, spaces, times). Needed because
   # `binarize_with_median` only reads an xarray/.nc, not an MNE .fif — so we
@@ -608,6 +625,7 @@ DerivativeList:
   - DenoisedRaw             # ZapLine once (shared by all preps)
   - PrepDur30Ov20
   - PrepSpectrum            # QC figure (.png) — post-prep
+  - MegQCReport             # QC report (.html) — mne.Report, raw vs prepped
   # per-epoch intermediates
   - Ep_XarrayEpochs
   - Ep_LZivComplexity
